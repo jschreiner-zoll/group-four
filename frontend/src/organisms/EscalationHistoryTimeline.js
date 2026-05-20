@@ -32,27 +32,48 @@ export default function EscalationHistoryTimeline({ alertId, escalations }) {
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    if (!alertId && !escalations) return;
-
     async function loadTimeline() {
-      if (alertId) {
-        setLoading(true);
-        try {
+      setLoading(true);
+      try {
+        if (alertId) {
+          // Fetch timeline for a specific alert
           const events = await getEscalationTimeline(alertId);
           setTimeline(events);
-        } catch (error) {
-          console.error('Failed to load timeline:', error);
-        } finally {
-          setLoading(false);
+        } else {
+          // Fetch all active escalations and get their timelines
+          const API_BASE = process.env.REACT_APP_API_URL || 'http://localhost:8000';
+          const res = await fetch(`${API_BASE}/api/escalation/active`);
+          if (res.ok) {
+            const activeEscalations = await res.json();
+            // Fetch timeline for each active escalation's first alert
+            const allEvents = [];
+            for (const esc of activeEscalations) {
+              if (esc.alert_ids && esc.alert_ids.length > 0) {
+                try {
+                  const events = await getEscalationTimeline(esc.alert_ids[0]);
+                  allEvents.push(...events);
+                } catch (e) {
+                  // Skip failed fetches
+                }
+              }
+            }
+            // Sort by timestamp descending
+            allEvents.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+            setTimeline(allEvents);
+          }
         }
+      } catch (error) {
+        console.error('Failed to load timeline:', error);
+      } finally {
+        setLoading(false);
       }
     }
 
     loadTimeline();
   }, [alertId]);
 
-  // If escalations provided directly (for overview mode)
-  const displayEvents = alertId ? timeline : (escalations || []);
+  // Use fetched timeline data
+  const displayEvents = timeline;
 
   if (loading) {
     return <div style={{ padding: '20px', color: '#9E9E9E' }}>Loading timeline...</div>;

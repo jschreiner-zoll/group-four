@@ -116,7 +116,7 @@ export default function CareTeamPage() {
 
         {activeTab === 'history' && (
           <div style={{ backgroundColor: '#FFFFFF', borderRadius: '8px', border: '1px solid #E0E0E0' }}>
-            <EscalationHistoryTimeline escalations={recentEscalations} />
+            <EscalationHistoryTimeline />
           </div>
         )}
       </div>
