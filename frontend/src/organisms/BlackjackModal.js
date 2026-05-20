@@ -139,13 +139,13 @@ export default function BlackjackModal({ open, onClose }) {
     rerender();
   };
 
-  if (!open) return null;
+  const modalStyle = open ? {} : { display: 'none' };
 
   const playerTotal = state.playerHand.length > 0 ? getHandTotal(state.playerHand) : null;
   const dealerTotal = gameOver && state.dealerHand.length > 0 ? getHandTotal(state.dealerHand) : null;
 
   return (
-    <div className="blackjack-overlay" role="dialog" aria-label="Waiting Mode - Blackjack" aria-modal="true">
+    <div className="blackjack-overlay" role="dialog" aria-label="Waiting Mode - Blackjack" aria-modal="true" style={modalStyle}>
       <div className="blackjack-modal">
         <div className="blackjack-modal__header">
           <h2>🕷️ Spider-Jack: Waiting Mode</h2>
