@@ -48,6 +48,19 @@ export default function CareTeamTable({ patients }) {
     if (selectedPatients.size === 0 || !handoffTarget) return;
     try {
       await bulkHandoff(Array.from(selectedPatients), handoffTarget, 1);
+
+      // Re-fetch updated care team assignments to refresh dropdowns
+      const { fetchAssignments } = await import('../services/escalationApi');
+      const assignments = await fetchAssignments();
+      const careTeamMap = {};
+      assignments.forEach((ct) => {
+        const patientId = ct.subject?.reference?.split('/').pop() || '';
+        if (patientId) {
+          careTeamMap[patientId] = ct;
+        }
+      });
+      dispatch({ type: ESCALATION_ACTIONS.SET_CARE_TEAMS, payload: careTeamMap });
+
       setSelectedPatients(new Set());
       setShowHandoffModal(false);
     } catch (error) {
