@@ -13,6 +13,10 @@ class WebSocketClient {
       new_alert: [],
       alert_escalated: [],
       alert_acknowledged: [],
+      escalation_event: [],
+      care_team_updated: [],
+      clinician_status_changed: [],
+      handoff_complete: [],
     };
     this.onConnectChange = null;
     this.shouldReconnect = true;
@@ -87,6 +91,22 @@ class WebSocketClient {
 
   onAlertAcknowledged(callback) {
     this.handlers.alert_acknowledged = [callback];
+  }
+
+  onEscalationEvent(callback) {
+    this.handlers.escalation_event = [callback];
+  }
+
+  onCareTeamUpdated(callback) {
+    this.handlers.care_team_updated = [callback];
+  }
+
+  onClinicianStatusChanged(callback) {
+    this.handlers.clinician_status_changed = [callback];
+  }
+
+  onHandoffComplete(callback) {
+    this.handlers.handoff_complete = [callback];
   }
 
   setConnectionChangeHandler(callback) {

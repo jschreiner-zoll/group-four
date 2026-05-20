@@ -9,13 +9,14 @@ import {
   initialEscalationState,
   ESCALATION_ACTIONS,
 } from './escalationReducer';
+import wsClient from '../services/websocketClient';
 
 const EscalationContext = createContext(null);
 const EscalationDispatchContext = createContext(null);
 
 const API_BASE = process.env.REACT_APP_API_URL || 'http://localhost:8000';
 
-export function EscalationProvider({ children, wsConnection }) {
+export function EscalationProvider({ children }) {
   const [state, dispatch] = useReducer(escalationReducer, initialEscalationState);
 
   // Fetch initial data on mount
@@ -77,78 +78,51 @@ export function EscalationProvider({ children, wsConnection }) {
     fetchInitialData();
   }, []);
 
-  // Handle WebSocket messages for escalation events
+  // Handle WebSocket messages for escalation events via wsClient
   useEffect(() => {
-    if (!wsConnection) return;
+    wsClient.onEscalationEvent((data) => {
+      const eventType = data.type;
 
-    function handleMessage(event) {
-      try {
-        const message = JSON.parse(event.data);
-
-        switch (message.type) {
-          case 'escalation_event': {
-            const data = message.data;
-            const eventType = data.type;
-
-            if (eventType === 'escalated' || eventType === 'notified') {
-              dispatch({
-                type: ESCALATION_ACTIONS.UPDATE_ESCALATION,
-                payload: { alertId: data.alert_id, escalation: data },
-              });
-              // Add notification if targeting selected clinician
-              if (data.clinician_id === state.selectedClinician) {
-                dispatch({ type: ESCALATION_ACTIONS.ADD_NOTIFICATION, payload: data });
-              }
-            } else if (eventType === 'resolved' || eventType === 'acknowledged') {
-              dispatch({
-                type: ESCALATION_ACTIONS.REMOVE_ESCALATION,
-                payload: { alertId: data.alert_id },
-              });
-              if (data.clinician_id === state.selectedClinician) {
-                dispatch({ type: ESCALATION_ACTIONS.ADD_NOTIFICATION, payload: data });
-              }
-            }
-            break;
-          }
-
-          case 'care_team_updated': {
-            const data = message.data;
-            dispatch({
-              type: ESCALATION_ACTIONS.UPDATE_CARE_TEAM,
-              payload: { patientId: data.patient_id, careTeam: data.care_team },
-            });
-            break;
-          }
-
-          case 'clinician_status_changed': {
-            const data = message.data;
-            dispatch({
-              type: ESCALATION_ACTIONS.UPDATE_CLINICIAN_STATUS,
-              payload: { clinicianId: data.clinician_id, active: data.on_duty },
-            });
-            break;
-          }
-
-          case 'handoff_complete': {
-            const data = message.data;
-            dispatch({
-              type: ESCALATION_ACTIONS.SET_HANDOFF_SUMMARY,
-              payload: data.summary,
-            });
-            break;
-          }
-
-          default:
-            break;
+      if (eventType === 'escalated' || eventType === 'notified') {
+        dispatch({
+          type: ESCALATION_ACTIONS.UPDATE_ESCALATION,
+          payload: { alertId: data.alert_id, escalation: data },
+        });
+        if (data.clinician_id === state.selectedClinician) {
+          dispatch({ type: ESCALATION_ACTIONS.ADD_NOTIFICATION, payload: data });
         }
-      } catch (error) {
-        // Ignore parse errors for non-escalation messages
+      } else if (eventType === 'resolved' || eventType === 'acknowledged') {
+        dispatch({
+          type: ESCALATION_ACTIONS.REMOVE_ESCALATION,
+          payload: { alertId: data.alert_id },
+        });
+        if (data.clinician_id === state.selectedClinician) {
+          dispatch({ type: ESCALATION_ACTIONS.ADD_NOTIFICATION, payload: data });
+        }
       }
-    }
+    });
 
-    wsConnection.addEventListener('message', handleMessage);
-    return () => wsConnection.removeEventListener('message', handleMessage);
-  }, [wsConnection, state.selectedClinician]);
+    wsClient.onCareTeamUpdated((data) => {
+      dispatch({
+        type: ESCALATION_ACTIONS.UPDATE_CARE_TEAM,
+        payload: { patientId: data.patient_id, careTeam: data.care_team },
+      });
+    });
+
+    wsClient.onClinicianStatusChanged((data) => {
+      dispatch({
+        type: ESCALATION_ACTIONS.UPDATE_CLINICIAN_STATUS,
+        payload: { clinicianId: data.clinician_id, active: data.on_duty },
+      });
+    });
+
+    wsClient.onHandoffComplete((data) => {
+      dispatch({
+        type: ESCALATION_ACTIONS.SET_HANDOFF_SUMMARY,
+        payload: data.summary,
+      });
+    });
+  }, [state.selectedClinician]);
 
   return (
     <EscalationContext.Provider value={state}>

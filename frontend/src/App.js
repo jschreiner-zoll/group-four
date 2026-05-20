@@ -7,6 +7,8 @@ import React, { useState } from 'react';
 import DashboardPage from './pages/DashboardPage';
 import CareTeamPage from './pages/CareTeamPage';
 import { EscalationProvider } from './context/EscalationContext';
+import { AppProvider } from './context/AppContext';
+import { LanguageProvider } from './context/LanguageContext';
 import ClinicianSelector from './atoms/ClinicianSelector';
 import NotificationPanel from './organisms/NotificationPanel';
 import { useEscalation, useEscalationDispatch, ESCALATION_ACTIONS } from './context/EscalationContext';
@@ -154,9 +156,13 @@ function AppContent() {
 
 function App() {
   return (
-    <EscalationProvider>
-      <AppContent />
-    </EscalationProvider>
+    <AppProvider>
+      <LanguageProvider>
+        <EscalationProvider>
+          <AppContent />
+        </EscalationProvider>
+      </LanguageProvider>
+    </AppProvider>
   );
 }
 
