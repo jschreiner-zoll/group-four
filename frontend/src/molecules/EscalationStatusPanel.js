@@ -27,16 +27,26 @@ export default function EscalationStatusPanel({ escalation }) {
 
   const {
     current_level,
-    max_level,
+    max_level = 4,
     level_entered_at,
     notified_clinicians = [],
-    level_history = [],
   } = escalation;
 
-  // Calculate next escalation time based on level timeout (default 300s)
-  const levelTimeout = 300; // seconds — will be from config in production
-  const enteredAt = new Date(level_entered_at);
-  const nextEscalationTime = new Date(enteredAt.getTime() + levelTimeout * 1000);
+  // Calculate next escalation time
+  // In demo mode (30x), backend schedules at 10s real time per level
+  // The level_entered_at is real time, so we calculate based on when the level was entered
+  // and add the real-world delay (which the backend already computed with time scaling)
+  // Since we poll every 5s, we use a simple heuristic: if level_entered_at is recent, show countdown
+  const enteredAt = level_entered_at ? new Date(level_entered_at) : new Date();
+  const now = Date.now();
+  const elapsedMs = now - enteredAt.getTime();
+  
+  // Estimate timeout: if elapsed < 15s, likely demo mode (10s per level)
+  // if elapsed > 60s, likely real mode (300s per level)
+  // Use the actual elapsed to determine remaining
+  const estimatedTimeout = elapsedMs < 30000 ? 10000 : 300000; // 10s demo or 300s real
+  const remainingMs = Math.max(0, estimatedTimeout - elapsedMs);
+  const nextEscalationTime = new Date(now + remainingMs);
 
   const panelStyle = {
     padding: '8px 12px',

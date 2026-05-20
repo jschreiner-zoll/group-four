@@ -66,8 +66,9 @@ export default function SimulationControls({ patientId, activeConditions = [], d
     alignItems: 'center',
     gap: '6px',
     marginTop: '8px',
-    padding: '4px 0',
+    padding: '8px 0 4px 0',
     borderTop: '1px solid #E0E0E0',
+    width: '100%',
   };
 
   const demoLabelStyle = {
