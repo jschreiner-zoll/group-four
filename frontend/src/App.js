@@ -107,16 +107,17 @@ function AppContent() {
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'space-between',
-    padding: '10px 20px',
-    backgroundColor: 'var(--color-surface, #FFFFFF)',
-    borderBottom: '1px solid var(--color-border, #E0E0E0)',
+    padding: '12px 20px',
+    backgroundColor: 'var(--color-primary, #5C4FE0)',
+    borderBottom: '1px solid var(--color-border-light, #E0E0E0)',
+    boxShadow: 'var(--shadow-sm)',
     flexShrink: 0,
   };
 
   const headerTitleStyle = {
-    fontSize: '16px',
+    fontSize: '1.25rem',
     fontWeight: '600',
-    color: 'var(--color-text-primary, #212121)',
+    color: '#FFFFFF',
   };
 
   const headerActionsStyle = {
@@ -161,7 +162,7 @@ function AppContent() {
         {/* Header with Clinician Selector and Notifications */}
         <header style={headerStyle}>
           <h1 style={headerTitleStyle}>
-            {activePage === 'dashboard' ? 'Patient Dashboard' : 'Care Team Management'}
+            {t('title')}
           </h1>
           <div style={headerActionsStyle}>
             <LanguageSelector />
@@ -169,13 +170,13 @@ function AppContent() {
               onClick={() => setDarkMode(!darkMode)}
               aria-label={darkMode ? 'Switch to light mode' : 'Switch to dark mode'}
               data-testid="theme-toggle"
-              style={{ background: 'none', border: '1px solid var(--color-border, #BDBDBD)', borderRadius: '4px', padding: '4px 8px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px', fontSize: '12px', color: 'var(--color-text-secondary, #424242)' }}
+              style={{ background: 'rgba(255,255,255,0.15)', border: '1px solid rgba(255,255,255,0.3)', borderRadius: '4px', padding: '4px 8px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px', fontSize: '12px', color: '#FFFFFF' }}
             >
               {darkMode ? <Sun size={14} /> : <Moon size={14} />}
               {darkMode ? t('light') : t('dark')}
             </button>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '12px', color: 'var(--color-text-muted, #616161)' }}>
-              <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: wsConnected ? 'var(--color-normal, #2E7D32)' : '#B71C1C' }} />
+            <div style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '12px', color: 'rgba(255,255,255,0.85)' }}>
+              <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: wsConnected ? '#66BB6A' : '#EF5350' }} />
               <span>{wsConnected ? t('connected') : t('disconnected')}</span>
             </div>
             <ClinicianSelector
