@@ -9,6 +9,7 @@ import { useAppState, useAppDispatch } from '../context/AppContext';
 import { ACTIONS } from '../context/appReducer';
 import audioAlertManager from '../services/audioAlertManager';
 import { useLanguage } from '../context/LanguageContext';
+import { useEscalation } from '../context/EscalationContext';
 
 export default function AlertSidebar() {
   const { alerts, audioMuted } = useAppState();
@@ -18,6 +19,10 @@ export default function AlertSidebar() {
   const [frozenAlerts, setFrozenAlerts] = React.useState(null);
   const [newAlertIds, setNewAlertIds] = React.useState(new Set());
   const prevAlertIdsRef = React.useRef(new Set());
+
+  // Get escalation state for alerts
+  const escalationState = useEscalation();
+  const escalations = escalationState?.escalations || {};
 
   // Track newly added alerts
   React.useEffect(() => {
@@ -109,7 +114,7 @@ export default function AlertSidebar() {
               {group.patientName}
             </div>
             {group.alerts.map((alert) => (
-              <AlertCard key={alert.id} alert={alert} isNew={newAlertIds.has(alert.id)} onFormOpen={handleFormOpen} onFormClose={handleFormClose} />
+              <AlertCard key={alert.id} alert={alert} escalation={escalations[alert.id]} isNew={newAlertIds.has(alert.id)} onFormOpen={handleFormOpen} onFormClose={handleFormClose} />
             ))}
           </div>
         ))}

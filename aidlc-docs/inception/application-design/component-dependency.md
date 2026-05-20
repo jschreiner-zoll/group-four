@@ -1,115 +1,203 @@
-# Component Dependencies
-
-## Connected Care / Remote Patient Monitoring PoC
+# Component Dependencies — Care Team Escalation Routing & Management
 
 ---
 
 ## Dependency Matrix
 
-| Component | Depends On | Depended By |
+### Backend Dependencies
+
+| Component | Depends On | Depended On By |
 |---|---|---|
-| **Vital Signs Simulator** | Data Models | Alert Engine, WebSocket Manager |
-| **Alert Engine** | Data Models | Patient Manager (REST), WebSocket Manager |
-| **Patient Manager** | Data Models, Alert Engine, Simulator | Frontend (via REST) |
-| **WebSocket Manager** | None | Simulator, Alert Engine, Frontend |
-| **Data Models** | None | All backend components |
-| **WebSocketClient** | None | DashboardPage, State Management |
-| **AudioAlertManager** | None | AlertSidebar, DashboardPage |
-| **State (Context/Reducer)** | WebSocketClient | All frontend UI components |
-| **PatientGrid** | PatientTile, State | DashboardTemplate |
-| **AlertSidebar** | AlertCard, AudioAlertManager, State | DashboardTemplate |
-| **PatientTile** | VitalSignBadge, StatusIndicator, SimulationControls | PatientGrid |
-| **AlertCard** | AlertBadge, StatusIndicator | AlertSidebar |
-| **DashboardPage** | DashboardTemplate, WebSocketClient, AudioAlertManager, State | App (root) |
+| `escalation.py` (EscalationEngine) | CareTeamManager, EscalationTracker, VirtualClock, WebSocketManager | main.py (startup registration) |
+| `care_team.py` (CareTeamManager) | fhir_models.py | EscalationEngine, REST endpoints |
+| `escalation_tracker.py` (EscalationTracker) | fhir_models.py | EscalationEngine, REST endpoints |
+| `virtual_clock.py` (VirtualClock) | asyncio | EscalationEngine |
+| `fhir_models.py` | pydantic | CareTeamManager, EscalationTracker, REST endpoints |
+| `alerts.py` (AlertEngine) — EXISTING | models.py | EscalationEngine (via hooks) |
+| `websocket_manager.py` — EXISTING | — | EscalationEngine, CareTeamManager |
+| `main.py` — EXISTING | All modules | — |
+
+### Frontend Dependencies
+
+| Component | Depends On | Depended On By |
+|---|---|---|
+| EscalationContext | WebSocket, API service | All escalation components |
+| CareTeamPage | EscalationContext, CareTeamTable, ClinicianRoster, EscalationHistoryTimeline | App router |
+| CareTeamTable | EscalationContext, CareTeamAssignmentRow | CareTeamPage |
+| ClinicianRoster | EscalationContext | CareTeamPage |
+| EscalationHistoryTimeline | EscalationContext | CareTeamPage |
+| EscalationStatusPanel | EscalationContext, EscalationBadge, CountdownTimer | AlertCard (enhanced) |
+| ClinicianSelector | EscalationContext | DashboardPage header |
+| NotificationPanel | EscalationContext, NotificationToast | DashboardPage |
+| AlertCard (enhanced) | EscalationStatusPanel, existing props | AlertSidebar |
 
 ---
 
 ## Communication Patterns
 
-### Backend Internal Communication
+### Backend Communication
+
 ```
-Simulator ──(generates vitals)──> Alert Engine ──(evaluates)──> WebSocket Manager
-    |                                   |                              |
-    +──(broadcasts vitals)──────────────+──(broadcasts alerts)─────────+
-                                                                       |
-                                                                       v
-                                                              Connected Clients
+Hook Pattern (Loose Coupling):
+  AlertEngine --[on_alert_created]--> EscalationEngine
+  AlertEngine --[on_alert_acknowledged]--> EscalationEngine
+
+Direct Method Calls:
+  EscalationEngine --> CareTeamManager.get_clinician_for_level()
+  EscalationEngine --> EscalationTracker.create_escalation()
+  EscalationEngine --> VirtualClock.call_later()
+  EscalationEngine --> WebSocketManager.broadcast()
+  CareTeamManager --> EscalationTracker.get_escalations_for_patient()
+
+REST API (Frontend -> Backend):
+  Frontend --> /api/care-team/* --> CareTeamManager
+  Frontend --> /api/escalation/* --> EscalationTracker + EscalationEngine
+
+WebSocket (Backend -> Frontend):
+  EscalationEngine --> WebSocketManager --> Frontend (escalation_event)
+  CareTeamManager --> WebSocketManager --> Frontend (care_team_updated)
 ```
 
-**Pattern**: Direct function calls (all in-process, no message broker)
-- Simulator calls `alert_engine.evaluate_vitals()` directly
-- Simulator calls `websocket_manager.broadcast_vitals()` directly
-- Alert Engine calls `websocket_manager.broadcast_alert()` when threshold breached
+### Frontend Communication
 
-### Frontend-Backend Communication
 ```
-React App ──(REST GET)──────> FastAPI ──(JSON response)──> React App
-React App ──(REST POST)─────> FastAPI ──(JSON response)──> React App
-FastAPI   ──(WebSocket push)──────────────────────────────> React App
-```
+Context Pattern:
+  EscalationContext <-- WebSocket messages
+  EscalationContext --> CareTeamPage (via useContext)
+  EscalationContext --> AlertCard/EscalationStatusPanel (via useContext)
+  EscalationContext --> ClinicianSelector (via useContext)
+  EscalationContext --> NotificationPanel (via useContext)
 
-**Patterns**:
-- **REST (Request/Response)**: Commands and queries (acknowledge alert, trigger simulation, get patients)
-- **WebSocket (Server Push)**: Real-time data (vitals updates every 5s, new alerts, acknowledgment broadcasts)
-
-### Frontend Internal Communication
+REST Calls:
+  CareTeamPage --> /api/care-team/* (CRUD operations)
+  CareTeamPage --> /api/escalation/* (history, config)
+  SimulationControls --> /api/escalation/demo-mode (toggle)
 ```
-WebSocketClient ──(dispatches)──> Context/Reducer ──(state)──> UI Components
-                                                                     |
-REST API calls <──(user actions: acknowledge, simulate)──────────────+
-```
-
-**Pattern**: Unidirectional data flow
-- WebSocket messages → dispatch actions → state updates → component re-renders
-- User interactions → REST API calls → server processes → WebSocket broadcasts → state updates
 
 ---
 
 ## Data Flow Diagram
 
+### Escalation Cascade Flow
+
 ```
-+------------------------------------------------------------------+
-|                        BACKEND (FastAPI)                          |
-|                                                                  |
-|  [Simulator] --vitals--> [Alert Engine] --alert--> [WS Manager]  |
-|       |                       |                         |        |
-|       +-------vitals----------+-------------------------+        |
-|                               |                         |        |
-|                        [In-Memory Store]                 |        |
-|                         patients[]                       |        |
-|                         alerts[]                         |        |
-|                         vitals_history[]                 |        |
-+------------------------------------------------------------------+
-         |  REST API  |              |  WebSocket  |
-         v            v              v             v
-+------------------------------------------------------------------+
-|                      FRONTEND (React)                             |
-|                                                                  |
-|  [WebSocketClient] --dispatch--> [Context/Reducer]               |
-|                                        |                         |
-|                                   state updates                  |
-|                                        |                         |
-|  [DashboardPage]                       v                         |
-|    +-- [PatientGrid]  <-- patients, vitals state                 |
-|    |     +-- [PatientTile] x10                                   |
-|    |           +-- [VitalSignBadge] x7                           |
-|    |           +-- [SimulationControls]                          |
-|    |                                                             |
-|    +-- [AlertSidebar]  <-- alerts state                          |
-|          +-- [AlertCard] xN                                      |
-|          +-- [AudioAlertManager]                                 |
-+------------------------------------------------------------------+
++-------------+     hook      +------------------+    lookup    +----------------+
+| AlertEngine | -----------> | EscalationEngine | ----------> | CareTeamManager|
+| (existing)  |              |                  |             |                |
++-------------+              +------------------+             +----------------+
+                                    |       |
+                          schedule  |       | track
+                                    v       v
+                            +--------+  +------------------+
+                            | Virtual|  | EscalationTracker|
+                            | Clock  |  |                  |
+                            +--------+  +------------------+
+                                    |
+                          callback  |
+                          fires     v
+                            +------------------+    broadcast   +----------------+
+                            | EscalationEngine | ------------> | WebSocket Mgr  |
+                            | .escalate_to_    |               |                |
+                            |  next_level()    |               +----------------+
+                            +------------------+                       |
+                                                                       v
+                                                               +----------------+
+                                                               | React Frontend |
+                                                               | (Escalation    |
+                                                               |  Context)      |
+                                                               +----------------+
+```
+
+### Acknowledgment Flow
+
+```
++-------------+     hook      +------------------+    cancel    +--------+
+| AlertEngine | -----------> | EscalationEngine | ----------> | Virtual|
+| .acknowledge|              | .on_alert_ack()  |             | Clock  |
++-------------+              +------------------+             +--------+
+                                    |
+                          complete  |
+                                    v
+                            +------------------+
+                            | EscalationTracker|
+                            | .complete_       |
+                            |  escalation()    |
+                            +------------------+
+                                    |
+                          broadcast |  (resolved notification)
+                                    v
+                            +------------------+    to all notified
+                            | WebSocket Mgr    | ----------------->  Frontend
+                            +------------------+
 ```
 
 ---
 
-## Startup Sequence
+## Initialization Order (Startup)
 
-1. FastAPI server starts
-2. In-memory data store initialized (10 patients with demographics)
-3. Simulation background tasks started (one per patient)
-4. WebSocket endpoint ready for connections
-5. React frontend loads, establishes WebSocket connection
-6. Frontend receives initial patient data via REST `GET /api/patients`
-7. Real-time vitals begin streaming via WebSocket
-8. Alert engine evaluates each vitals reading as it's generated
+```python
+# In main.py lifespan/startup:
+1. virtual_clock = VirtualClock()
+2. care_team_manager = CareTeamManager()  # Initializes roster + default assignments
+3. escalation_tracker = EscalationTracker()
+4. escalation_engine = EscalationEngine(care_team_manager, escalation_tracker, virtual_clock, ws_manager)
+5. alert_engine.register_hook("on_created", escalation_engine.on_alert_created)
+6. alert_engine.register_hook("on_acknowledged", escalation_engine.on_alert_acknowledged)
+```
+
+---
+
+## Module File Structure (Backend)
+
+```
+backend/app/
+  ├── __init__.py
+  ├── main.py              (MODIFIED — register new routers + hooks)
+  ├── config.py            (MODIFIED — add escalation config constants)
+  ├── models.py            (EXISTING — unchanged)
+  ├── alerts.py            (MODIFIED — add hook registration mechanism)
+  ├── patients.py          (EXISTING — unchanged)
+  ├── simulator.py         (EXISTING — unchanged)
+  ├── websocket_manager.py (EXISTING — unchanged, new broadcast calls from new modules)
+  ├── escalation.py        (NEW — EscalationEngine)
+  ├── escalation_tracker.py(NEW — EscalationTracker)
+  ├── care_team.py         (NEW — CareTeamManager + REST endpoints)
+  ├── virtual_clock.py     (NEW — VirtualClock)
+  └── fhir_models.py       (NEW — FHIR R4 Pydantic models)
+```
+
+## Module File Structure (Frontend)
+
+```
+frontend/src/
+  ├── context/
+  │   ├── AppContext.js          (EXISTING — unchanged)
+  │   ├── appReducer.js          (EXISTING — unchanged)
+  │   ├── LanguageContext.js     (EXISTING — unchanged)
+  │   ├── EscalationContext.js   (NEW)
+  │   └── escalationReducer.js   (NEW)
+  ├── atoms/
+  │   ├── ClinicianSelector.js   (NEW)
+  │   ├── EscalationBadge.js     (NEW)
+  │   └── CountdownTimer.js      (NEW)
+  ├── molecules/
+  │   ├── AlertCard.js           (MODIFIED — add EscalationStatusPanel)
+  │   ├── EscalationStatusPanel.js (NEW)
+  │   ├── CareTeamAssignmentRow.js (NEW)
+  │   ├── ShiftHandoffCard.js    (NEW)
+  │   ├── NotificationToast.js   (NEW)
+  │   └── SimulationControls.js  (MODIFIED — add demo toggle)
+  ├── organisms/
+  │   ├── CareTeamTable.js       (NEW)
+  │   ├── ClinicianRoster.js     (NEW)
+  │   ├── EscalationHistoryTimeline.js (NEW)
+  │   ├── NotificationPanel.js   (NEW)
+  │   └── AlertSidebar.js        (EXISTING — unchanged)
+  ├── pages/
+  │   ├── DashboardPage.js       (MODIFIED — add sidebar nav + clinician selector)
+  │   └── CareTeamPage.js        (NEW)
+  └── services/
+      ├── api.js                 (MODIFIED — add care team + escalation API calls)
+      └── escalationApi.js       (NEW — dedicated escalation API service)
+```
+

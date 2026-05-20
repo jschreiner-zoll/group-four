@@ -1,18 +1,44 @@
-# Execution Plan
+# Execution Plan — Care Team Escalation Routing & Management
 
 ## Detailed Analysis Summary
 
+### Transformation Scope
+- **Transformation Type**: Multi-component feature addition (brownfield)
+- **Primary Changes**: New escalation engine, care team data models, care team management UI, enhanced alert cards
+- **Related Components**: alerts.py (hook integration), models.py (new models), websocket_manager.py (new message types), AlertCard (UI enhancement), SimulationControls (demo toggle)
+
 ### Change Impact Assessment
-- **User-facing changes**: Yes — entirely new application with clinician-facing dashboard
-- **Structural changes**: Yes — new multi-component system (frontend, backend, simulator)
-- **Data model changes**: Yes — new in-memory data structures for patients, vitals, alerts
-- **API changes**: Yes — new WebSocket and REST API endpoints
-- **NFR impact**: Yes — real-time performance, WCAG 2.0 accessibility, healthcare UI standards
+- **User-facing changes**: Yes — new care team management page, enhanced alert cards with escalation status, clinician selector, escalation history view
+- **Structural changes**: Yes — new backend modules (escalation.py, care_team.py), new frontend page and components
+- **Data model changes**: Yes — new FHIR-aligned CareTeam, Clinician, EscalationEvent models
+- **API changes**: Yes — new REST endpoints (/api/care-team/*, /api/escalation/*)
+- **NFR impact**: Moderate — timer reliability, PBT for escalation state machine
+
+### Component Relationships
+```
+Primary Components (NEW):
+  - escalation.py (Escalation Engine)
+  - care_team.py (Care Team Management)
+  - CareTeamPage (Frontend)
+  - EscalationHistory (Frontend)
+
+Integration Points (EXISTING - modified):
+  - alerts.py → hooks for escalation trigger on alert creation
+  - alerts.py → hooks for cascade stop on acknowledgment
+  - models.py → new Pydantic models added
+  - websocket_manager.py → new message types
+  - main.py → new router registration
+  - AlertCard → escalation status display
+  - SimulationControls → demo mode toggle
+  - AppContext/Reducer → new state slices
+```
 
 ### Risk Assessment
-- **Risk Level**: Low (PoC with no production dependencies, no persistence, no auth)
-- **Rollback Complexity**: Easy (greenfield, no existing system affected)
-- **Testing Complexity**: Moderate (real-time WebSocket, threshold logic, UI accessibility)
+- **Risk Level**: Medium
+- **Rollback Complexity**: Easy (new modules can be removed without affecting existing functionality)
+- **Testing Complexity**: Moderate (timer-based logic requires mocked time, PBT for state machine)
+
+---
 
 ## Workflow Visualization
 
@@ -49,26 +75,28 @@ flowchart TD
     style FD fill:#FFA726,stroke:#E65100,stroke-width:3px,stroke-dasharray: 5 5,color:#000
     style CG fill:#4CAF50,stroke:#1B5E20,stroke-width:3px,color:#fff
     style BT fill:#4CAF50,stroke:#1B5E20,stroke-width:3px,color:#fff
-    style Start fill:#CE93D8,stroke:#6A1B9A,stroke-width:3px,color:#000
-    style End fill:#CE93D8,stroke:#6A1B9A,stroke-width:3px,color:#000
     style INCEPTION fill:#BBDEFB,stroke:#1565C0,stroke-width:3px,color:#000
     style CONSTRUCTION fill:#C8E6C9,stroke:#2E7D32,stroke-width:3px,color:#000
+    style Start fill:#CE93D8,stroke:#6A1B9A,stroke-width:3px,color:#000
+    style End fill:#CE93D8,stroke:#6A1B9A,stroke-width:3px,color:#000
     linkStyle default stroke:#333,stroke-width:2px
 ```
 
 ### Text Alternative
 ```
-INCEPTION PHASE:
-  1. Workspace Detection (COMPLETED)
-  2. Requirements Analysis (COMPLETED)
-  3. Workflow Planning (COMPLETED)
-  4. Application Design (EXECUTE)
+Phase 1: INCEPTION
+  - Workspace Detection (COMPLETED)
+  - Requirements Analysis (COMPLETED)
+  - Workflow Planning (COMPLETED)
+  - Application Design (EXECUTE)
 
-CONSTRUCTION PHASE:
-  5. Functional Design (EXECUTE)
-  6. Code Generation (EXECUTE)
-  7. Build and Test (EXECUTE)
+Phase 2: CONSTRUCTION
+  - Functional Design (EXECUTE)
+  - Code Generation (EXECUTE)
+  - Build and Test (EXECUTE)
 ```
+
+---
 
 ## Phases to Execute
 
@@ -76,48 +104,64 @@ CONSTRUCTION PHASE:
 - [x] Workspace Detection (COMPLETED)
 - [x] Requirements Analysis (COMPLETED)
 - [x] Workflow Planning (COMPLETED)
-- [ ] Reverse Engineering - SKIP
-  - **Rationale**: Greenfield project, no existing code to analyze
-- [ ] User Stories - SKIP
-  - **Rationale**: Single user type (clinician), clear requirements, PoC scope
 - [ ] Application Design - EXECUTE
-  - **Rationale**: New multi-component system needs component identification, service boundaries, and API contract definition
-- [ ] Units Generation - SKIP
-  - **Rationale**: Single unit of work — the entire PoC is small enough to implement as one cohesive unit
+  - **Rationale**: New components needed (escalation engine, care team manager, new frontend page). Component methods, service interactions, and FHIR-aligned data model design required. Need to define how new modules integrate with existing alert engine.
+- ~~Reverse Engineering~~ - SKIP
+  - **Rationale**: Application design artifacts from previous cycle provide sufficient context
+- ~~User Stories~~ - SKIP
+  - **Rationale**: Requirements are detailed and clear with specific acceptance criteria. Single user type (clinician/supervisor). No ambiguity in user workflows.
+- ~~Units Generation~~ - SKIP
+  - **Rationale**: Single unit of work — all components are tightly coupled (escalation engine depends on care team model, UI depends on both). No benefit to splitting into parallel units.
 
 ### CONSTRUCTION PHASE
 - [ ] Functional Design - EXECUTE
-  - **Rationale**: Threshold alerting logic, vital sign simulation algorithms, and alert state machine need detailed design
-- [ ] NFR Requirements - SKIP
-  - **Rationale**: NFRs are straightforward (WCAG 2.0, in-memory, local deployment) and already captured in requirements
-- [ ] NFR Design - SKIP
-  - **Rationale**: No complex NFR patterns needed for a local PoC
-- [ ] Infrastructure Design - SKIP
-  - **Rationale**: No cloud infrastructure; runs locally with no external dependencies
+  - **Rationale**: Complex business logic (escalation state machine, timer management, FHIR mapping, configurable severity routing). Domain entities and business rules need detailed design. PBT-01 requires property identification during this stage.
 - [ ] Code Generation - EXECUTE (ALWAYS)
-  - **Rationale**: Implementation planning and code generation needed
+  - **Rationale**: Implementation planning and code generation for all new and modified components
 - [ ] Build and Test - EXECUTE (ALWAYS)
-  - **Rationale**: Build verification and testing instructions needed
+  - **Rationale**: Build verification, unit tests, integration tests, PBT execution
+- ~~NFR Requirements~~ - SKIP
+  - **Rationale**: Tech stack already determined (Python/FastAPI + React). NFRs documented in requirements are straightforward (timer reliability, WCAG compliance) and don't require separate tech selection.
+- ~~NFR Design~~ - SKIP
+  - **Rationale**: No complex NFR patterns needed beyond what's already in the existing architecture
+- ~~Infrastructure Design~~ - SKIP
+  - **Rationale**: No infrastructure changes — same single-process in-memory architecture
 
 ### OPERATIONS PHASE
-- [ ] Operations - PLACEHOLDER
-  - **Rationale**: Future deployment and monitoring workflows (not applicable for local PoC)
+- ~~Operations~~ - PLACEHOLDER
 
-## Estimated Timeline
-- **Total Stages to Execute**: 4 remaining (Application Design, Functional Design, Code Generation, Build and Test)
-- **Total Stages to Skip**: 6 (Reverse Engineering, User Stories, Units Generation, NFR Requirements, NFR Design, Infrastructure Design)
+---
+
+## Execution Summary
+
+| # | Stage | Phase | Status |
+|---|---|---|---|
+| 1 | Workspace Detection | INCEPTION | COMPLETED |
+| 2 | Requirements Analysis | INCEPTION | COMPLETED |
+| 3 | Workflow Planning | INCEPTION | COMPLETED |
+| 4 | Application Design | INCEPTION | NEXT |
+| 5 | Functional Design | CONSTRUCTION | Pending |
+| 6 | Code Generation | CONSTRUCTION | Pending |
+| 7 | Build and Test | CONSTRUCTION | Pending |
+
+**Total stages to execute**: 4 (Application Design, Functional Design, Code Generation, Build and Test)
+**Stages skipped**: 6 (Reverse Engineering, User Stories, Units Generation, NFR Requirements, NFR Design, Infrastructure Design)
+
+---
 
 ## Success Criteria
-- **Primary Goal**: Working PoC demonstrating real-time remote patient monitoring with simulated IoT devices
+- **Primary Goal**: Fully functional care team escalation routing integrated with existing RPM platform
 - **Key Deliverables**:
-  - Python/FastAPI backend with WebSocket support
-  - React frontend with WCAG 2.0 compliant dashboard
-  - 10 simulated patients with 7 vital signs each
-  - Threshold-based alerting with audio/visual notifications
-  - Clinician alert acknowledgment workflow
+  - FHIR R4-aligned care team data models
+  - Event-driven escalation engine with configurable timers
+  - Care team management page with bulk handoff
+  - Enhanced alert cards with escalation visualization
+  - Escalation audit trail and history view
+  - Demo mode for compressed escalation demonstrations
+  - Property-based tests for escalation state machine
 - **Quality Gates**:
-  - All vital signs update in real-time (5-second intervals)
-  - Threshold breaches generate alerts within 1 second
-  - UI meets WCAG 2.0 AA contrast requirements
-  - Medical condition simulation buttons trigger appropriate vital changes
-  - Alert acknowledgment with notes persists in session history
+  - All existing tests continue to pass (no regressions)
+  - New backend tests pass (unit + PBT)
+  - FHIR-conformant API responses validated
+  - WCAG 2.0 AA compliance for new UI elements
+  - Demo mode successfully demonstrates full escalation cascade

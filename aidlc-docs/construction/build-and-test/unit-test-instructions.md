@@ -1,38 +1,53 @@
-# Unit Test Execution
+# Unit Test Execution — Care Team Escalation Routing
 
-## Backend Tests (pytest)
+## Backend Unit Tests
 
 ### Run All Backend Tests
 ```bash
 cd backend
-source venv/bin/activate
-pytest tests/ -v
+python -m pytest tests/ -v
 ```
 
-### Run Specific Test Files
+### Run Only New Escalation Tests
 ```bash
-pytest tests/test_simulator.py -v    # Vital sign simulation tests
-pytest tests/test_alerts.py -v       # Alert engine tests
-pytest tests/test_patients.py -v     # REST API endpoint tests
+cd backend
+python -m pytest tests/test_fhir_models.py tests/test_virtual_clock.py tests/test_escalation_tracker.py tests/test_care_team.py tests/test_escalation.py -v
+```
+
+### Run Property-Based Tests
+```bash
+cd backend
+python -m pytest tests/test_pbt_escalation.py -v --hypothesis-show-statistics
 ```
 
 ### Expected Results
-- **Total Tests**: 52
-- **test_simulator.py**: 17 tests (normal generation, condition simulation, recovery)
-- **test_alerts.py**: 23 tests (threshold evaluation, escalation, acknowledgment, patient status)
-- **test_patients.py**: 12 tests (REST endpoints, validation)
-- **Expected**: All 52 pass, 0 failures
+- **Existing tests**: 52 tests pass (no regressions)
+- **New unit tests**: ~40-60 tests covering:
+  - FHIR model creation and serialization
+  - Virtual clock time scaling and callback management
+  - Escalation tracker state management and queries
+  - Care team manager CRUD and routing
+  - Escalation engine cascade logic
+- **PBT tests**: ~12 property tests covering:
+  - FHIR serialization round-trips
+  - Escalation level monotonicity
+  - Timer cancellation guarantees
+  - Grouped alert consistency
+  - Acknowledge idempotence
+  - State machine valid transitions
 
-### Test Coverage Areas
-| Component | Tests | Coverage |
-|---|---|---|
-| Vital Sign Simulator | 17 | Normal ranges, spike/sustained, recovery, edge cases |
-| Alert Engine | 23 | Threshold detection, escalation, acknowledgment, status derivation |
-| REST API | 12 | All endpoints, validation errors, 404 handling |
+### Test Coverage Target
+- New modules: >80% line coverage
+- Run with coverage:
+```bash
+cd backend
+pip install pytest-cov
+python -m pytest tests/ --cov=app --cov-report=term-missing
+```
 
 ---
 
-## Frontend Tests (Jest + React Testing Library)
+## Frontend Unit Tests
 
 ### Run All Frontend Tests
 ```bash
@@ -42,26 +57,67 @@ npm test -- --watchAll=false
 
 ### Run Specific Test Files
 ```bash
-npm test -- --testPathPattern=appReducer
+cd frontend
+npm test -- --testPathPattern="escalationReducer" --watchAll=false
+npm test -- --testPathPattern="EscalationBadge" --watchAll=false
+npm test -- --testPathPattern="CountdownTimer" --watchAll=false
 ```
 
 ### Expected Results
-- **Total Tests**: 10
-- **appReducer.test.js**: 10 tests (all reducer actions, sorting, state transitions)
-- **Expected**: All 10 pass, 0 failures
-
-### Test Coverage Areas
-| Component | Tests | Coverage |
-|---|---|---|
-| App Reducer | 10 | SET_PATIENTS, UPDATE_VITALS, ADD_ALERT, ESCALATE_ALERT, ACKNOWLEDGE_ALERT, SELECT_PATIENT, TOGGLE_MUTE, SET_WS_CONNECTED |
+- **Existing tests**: appReducer.test.js passes
+- **New tests**: ~20-30 tests covering:
+  - escalationReducer: All 12 action types
+  - EscalationBadge: Level rendering, colors, accessibility
+  - CountdownTimer: Timer behavior, expiration callback
+  - PBT: State invariants with fast-check
 
 ---
 
-## Fix Failing Tests
+## Test File Inventory
 
-If tests fail:
-1. Read the test output to identify the failing assertion
-2. Check if it's a code bug or a test expectation issue
-3. Fix the source code (not the test) unless the test expectation is wrong
-4. Rerun the specific test file to verify the fix
-5. Run the full suite to ensure no regressions
+### Backend Tests (to create)
+| File | Tests | Coverage |
+|---|---|---|
+| `tests/test_fhir_models.py` | Model creation, serialization, validation | fhir_models.py |
+| `tests/test_virtual_clock.py` | Time scaling, callbacks, cancellation, test mode | virtual_clock.py |
+| `tests/test_escalation_tracker.py` | State CRUD, queries, audit trail | escalation_tracker.py |
+| `tests/test_care_team.py` | Roster, assignments, handoff, RRT | care_team.py |
+| `tests/test_escalation.py` | Full cascade, ack stop, off-duty skip, grouped, demo | escalation.py |
+| `tests/test_pbt_escalation.py` | 12 property-based tests | All modules |
+
+### Frontend Tests (to create)
+| File | Tests | Coverage |
+|---|---|---|
+| `__tests__/escalationReducer.test.js` | 12 reducer actions | escalationReducer.js |
+| `__tests__/EscalationBadge.test.js` | Rendering, colors, a11y | EscalationBadge.js |
+| `__tests__/CountdownTimer.test.js` | Timer, expiration | CountdownTimer.js |
+| `__tests__/pbt_escalation.test.js` | State invariants | Reducer + models |
+
+---
+
+## PBT Framework Configuration
+
+### Backend (Hypothesis)
+- Already in `requirements.txt`: `hypothesis==6.92.2`
+- Configuration in `pytest.ini` (add if needed):
+```ini
+[pytest]
+addopts = --hypothesis-seed=0
+```
+
+### Frontend (fast-check)
+- Add to `package.json` devDependencies:
+```json
+"fast-check": "^3.14.0"
+```
+- Install: `npm install --save-dev fast-check`
+
+---
+
+## Fixing Failing Tests
+
+1. Review test output for specific assertion failures
+2. Check if failure is in existing tests (regression) or new tests (implementation bug)
+3. For PBT failures: note the shrunk counterexample — it reveals the minimal failing case
+4. Fix the implementation, not the test (unless test has a logic error)
+5. Rerun until all pass
