@@ -24,30 +24,7 @@ export default function DashboardTemplate() {
   }, [darkMode]);
 
   return (
-    <div className="dashboard-layout">
-      <header className="dashboard-header">
-        <h1>{t('title')}</h1>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-          <LanguageSelector />
-          <button
-            className="theme-toggle"
-            onClick={() => setDarkMode(!darkMode)}
-            aria-label={darkMode ? 'Switch to light mode' : 'Switch to dark mode'}
-            data-testid="theme-toggle"
-          >
-            {darkMode ? <Sun size={16} /> : <Moon size={16} />}
-            {darkMode ? t('light') : t('dark')}
-          </button>
-          <div className="connection-status">
-            <span
-              className={`connection-dot ${!wsConnected ? 'connection-dot--disconnected' : ''}`}
-              aria-hidden="true"
-            />
-            <span>{wsConnected ? t('connected') : t('disconnected')}</span>
-          </div>
-        </div>
-      </header>
-
+    <div className="dashboard-layout dashboard-layout--no-header">
       <main>
         <PatientGrid />
       </main>

@@ -6,6 +6,11 @@
   position: relative;
 }
 
+.dashboard-layout--no-header {
+  min-height: auto;
+  height: 100%;
+}
+
 .dashboard-layout--with-detail {
   grid-template-columns: 1fr var(--detail-panel-width) var(--sidebar-width);
 }

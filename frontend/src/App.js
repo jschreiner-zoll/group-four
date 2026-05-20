@@ -4,12 +4,14 @@
  */
 
 import React, { useState, useEffect } from 'react';
+import { Sun, Moon } from 'lucide-react';
 import DashboardPage from './pages/DashboardPage';
 import CareTeamPage from './pages/CareTeamPage';
 import { EscalationProvider } from './context/EscalationContext';
-import { AppProvider } from './context/AppContext';
-import { LanguageProvider } from './context/LanguageContext';
+import { AppProvider, useAppState } from './context/AppContext';
+import { LanguageProvider, useLanguage } from './context/LanguageContext';
 import ClinicianSelector from './atoms/ClinicianSelector';
+import LanguageSelector from './atoms/LanguageSelector';
 import NotificationPanel from './organisms/NotificationPanel';
 import { useEscalation, useEscalationDispatch, ESCALATION_ACTIONS } from './context/EscalationContext';
 import audioAlertManager from './services/audioAlertManager';
@@ -18,6 +20,15 @@ function AppContent() {
   const [activePage, setActivePage] = useState('dashboard');
   const { clinicians, selectedClinician } = useEscalation();
   const dispatch = useEscalationDispatch();
+  const { wsConnected } = useAppState();
+  const { t } = useLanguage();
+  const [darkMode, setDarkMode] = useState(() => localStorage.getItem('theme') === 'dark');
+
+  // Apply theme
+  useEffect(() => {
+    document.documentElement.setAttribute('data-theme', darkMode ? 'dark' : 'light');
+    localStorage.setItem('theme', darkMode ? 'dark' : 'light');
+  }, [darkMode]);
 
   // Unlock audio on first user interaction (browser autoplay policy)
   useEffect(() => {
@@ -153,6 +164,20 @@ function AppContent() {
             {activePage === 'dashboard' ? 'Patient Dashboard' : 'Care Team Management'}
           </h1>
           <div style={headerActionsStyle}>
+            <LanguageSelector />
+            <button
+              onClick={() => setDarkMode(!darkMode)}
+              aria-label={darkMode ? 'Switch to light mode' : 'Switch to dark mode'}
+              data-testid="theme-toggle"
+              style={{ background: 'none', border: '1px solid var(--color-border, #BDBDBD)', borderRadius: '4px', padding: '4px 8px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px', fontSize: '12px', color: 'var(--color-text-secondary, #424242)' }}
+            >
+              {darkMode ? <Sun size={14} /> : <Moon size={14} />}
+              {darkMode ? t('light') : t('dark')}
+            </button>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '12px', color: 'var(--color-text-muted, #616161)' }}>
+              <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: wsConnected ? 'var(--color-normal, #2E7D32)' : '#B71C1C' }} />
+              <span>{wsConnected ? t('connected') : t('disconnected')}</span>
+            </div>
             <ClinicianSelector
               clinicians={clinicians}
               selectedId={selectedClinician}
