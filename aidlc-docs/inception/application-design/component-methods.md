@@ -1,99 +1,245 @@
-# Component Methods
-
-## Connected Care / Remote Patient Monitoring PoC
-
-Method signatures for each component. Detailed business rules will be defined in Functional Design.
+# Component Methods — Care Team Escalation Routing & Management
 
 ---
 
-## Backend Methods
+## Backend Components
 
-### Vital Signs Simulator (`simulator.py`)
+### 1. Escalation Engine (`escalation.py`)
 
-| Method | Input | Output | Purpose |
-|---|---|---|---|
-| `start_simulation()` | None | None | Start background tasks for all 10 patients |
-| `stop_simulation()` | None | None | Stop all simulation tasks |
-| `generate_vitals(patient_id: str)` | patient_id | VitalSigns | Generate one reading for a patient |
-| `trigger_condition(patient_id: str, condition: str)` | patient_id, condition name | bool | Shift patient vitals to simulate condition |
-| `reset_patient(patient_id: str)` | patient_id | bool | Return patient vitals to normal ranges |
-| `get_patients()` | None | List[Patient] | Return all patient records |
+```python
+class EscalationEngine:
+    def __init__(self, care_team_manager, escalation_tracker, virtual_clock, ws_manager)
+    
+    # Hook callbacks (registered on AlertEngine)
+    def on_alert_created(self, alert: Alert) -> None
+    def on_alert_acknowledged(self, alert_id: str, acknowledged_by: str) -> None
+    
+    # Escalation cascade management
+    def start_escalation(self, alert: Alert) -> EscalationState
+    def escalate_to_next_level(self, alert_id: str) -> None
+    def stop_escalation(self, alert_id: str, reason: str) -> None
+    
+    # Configuration
+    def get_max_level_for_severity(self, severity: AlertSeverity) -> int
+    def set_max_level_for_severity(self, severity: AlertSeverity, max_level: int) -> None
+    
+    # Notification
+    def notify_clinician(self, clinician_id: str, alert: Alert, level: int) -> None
+    def notify_resolution(self, alert_id: str, acknowledged_by: str) -> None
+    
+    # Demo mode
+    def set_demo_mode(self, enabled: bool) -> None
+    def get_demo_mode(self) -> bool
+```
 
-### Alert Engine (`alerts.py`)
+### 2. Care Team Manager (`care_team.py`)
 
-| Method | Input | Output | Purpose |
-|---|---|---|---|
-| `evaluate_vitals(patient_id: str, vitals: VitalSigns)` | patient_id, vitals | List[Alert] or None | Check vitals against thresholds, generate alerts |
-| `get_active_alerts()` | None | List[Alert] | Return all unacknowledged alerts |
-| `get_patient_alerts(patient_id: str)` | patient_id | List[Alert] | Return alerts for specific patient |
-| `acknowledge_alert(alert_id: str, note: str)` | alert_id, note text | Alert | Mark alert as acknowledged with note |
-| `get_alert_history()` | None | List[Alert] | Return all alerts (active + acknowledged) |
-| `get_thresholds()` | None | Dict | Return current threshold configuration |
+```python
+class CareTeamManager:
+    def __init__(self)
+    
+    # Clinician roster management
+    def get_all_clinicians(self) -> list[Practitioner]
+    def get_clinician(self, clinician_id: str) -> Practitioner | None
+    def set_duty_status(self, clinician_id: str, on_duty: bool) -> Practitioner
+    
+    # Care team assignment
+    def get_care_team(self, patient_id: str) -> CareTeam
+    def get_all_care_teams(self) -> list[CareTeam]
+    def assign_clinician(self, patient_id: str, clinician_id: str, level: int) -> CareTeam
+    def reassign_patient(self, patient_id: str, from_clinician_id: str, to_clinician_id: str) -> CareTeam
+    
+    # Bulk operations
+    def bulk_handoff(self, patient_ids: list[str], to_clinician_id: str, level: int) -> HandoffSummary
+    def generate_handoff_summary(self, patient_ids: list[str], outgoing_clinician_id: str) -> HandoffSummary
+    
+    # Escalation routing
+    def get_clinician_for_level(self, patient_id: str, level: int) -> Practitioner | None
+    def get_next_available_level(self, patient_id: str, current_level: int) -> tuple[int, Practitioner] | None
+    
+    # RRT management
+    def get_rrt_members(self, patient_id: str) -> list[Practitioner]
+    def set_rrt_members(self, patient_id: str, clinician_ids: list[str]) -> CareTeam
+    
+    # Escalation configuration
+    def get_escalation_config(self) -> EscalationConfig
+    def set_escalation_config(self, config: EscalationConfig) -> None
+```
 
-### Patient Manager (`patients.py`) — REST Endpoints
+### 3. Escalation Tracker (`escalation_tracker.py`)
 
-| Endpoint | Method | Input | Output | Purpose |
-|---|---|---|---|---|
-| `GET /api/patients` | GET | None | List[Patient] | Get all patients with current status |
-| `GET /api/patients/{id}` | GET | patient_id | Patient | Get single patient detail |
-| `POST /api/patients/{id}/simulate` | POST | patient_id, condition | bool | Trigger condition simulation |
-| `POST /api/patients/{id}/reset` | POST | patient_id | bool | Reset patient to normal |
-| `GET /api/alerts` | GET | None | List[Alert] | Get all active alerts |
-| `GET /api/alerts/history` | GET | None | List[Alert] | Get alert history |
-| `POST /api/alerts/{id}/acknowledge` | POST | alert_id, note | Alert | Acknowledge an alert |
-| `GET /api/thresholds` | GET | None | Dict | Get threshold configuration |
+```python
+class EscalationTracker:
+    def __init__(self)
+    
+    # State management
+    def create_escalation(self, alert_id: str, patient_id: str, initial_clinician: Practitioner) -> EscalationState
+    def get_escalation(self, alert_id: str) -> EscalationState | None
+    def get_active_escalations(self) -> list[EscalationState]
+    def get_escalations_for_patient(self, patient_id: str) -> list[EscalationState]
+    def get_escalations_for_clinician(self, clinician_id: str) -> list[EscalationState]
+    
+    # Level transitions
+    def record_level_change(self, alert_id: str, new_level: int, clinician: Practitioner) -> None
+    def record_acknowledgment(self, alert_id: str, clinician_id: str) -> None
+    def complete_escalation(self, alert_id: str, reason: str) -> None
+    
+    # Callback tracking
+    def set_pending_callback(self, alert_id: str, callback_handle) -> None
+    def get_pending_callback(self, alert_id: str) -> callback_handle | None
+    def clear_pending_callback(self, alert_id: str) -> None
+    
+    # Audit trail
+    def get_escalation_timeline(self, alert_id: str) -> list[EscalationEvent]
+    def get_response_times(self, alert_id: str) -> dict[int, float]
+```
 
-### WebSocket Manager (`websocket_manager.py`)
+### 4. Virtual Clock (`virtual_clock.py`)
 
-| Method | Input | Output | Purpose |
-|---|---|---|---|
-| `connect(websocket: WebSocket)` | WebSocket connection | None | Register new client connection |
-| `disconnect(websocket: WebSocket)` | WebSocket connection | None | Remove client connection |
-| `broadcast_vitals(data: dict)` | vitals data | None | Send vitals update to all clients |
-| `broadcast_alert(alert: Alert)` | alert object | None | Send new alert to all clients |
+```python
+class VirtualClock:
+    def __init__(self)
+    
+    # Time operations
+    def now(self) -> datetime
+    def call_later(self, delay_seconds: float, callback: Callable) -> CallbackHandle
+    def cancel(self, handle: CallbackHandle) -> None
+    
+    # Mode control
+    def set_time_scale(self, scale: float) -> None  # 1.0 = real-time, 30.0 = 30x speed
+    def get_time_scale(self) -> float
+    def is_demo_mode(self) -> bool
+    
+    # Testing support
+    def advance(self, seconds: float) -> None  # For tests only — manually advance time
+    def reset(self) -> None
+```
 
-### WebSocket Endpoint
+### 5. FHIR Models (`fhir_models.py`)
 
-| Endpoint | Purpose |
-|---|---|
-| `WS /ws` | WebSocket connection for real-time vitals and alert streaming |
+```python
+# FHIR R4 CareTeam resource (Pydantic)
+class CareTeam(BaseModel):
+    resourceType: str = "CareTeam"
+    id: str
+    identifier: list[Identifier]
+    status: CareTeamStatus  # proposed | active | suspended | inactive
+    category: list[CodeableConcept]
+    name: str
+    subject: Reference  # Reference to Patient
+    period: Period | None
+    participant: list[CareTeamParticipant]
 
-**WebSocket Message Types (Server → Client):**
-- `{"type": "vitals_update", "data": {...}}` — New vital signs reading
-- `{"type": "new_alert", "data": {...}}` — New alert generated
-- `{"type": "alert_acknowledged", "data": {...}}` — Alert was acknowledged
+class CareTeamParticipant(BaseModel):
+    role: list[CodeableConcept]  # Escalation level role
+    member: Reference  # Reference to Practitioner or CareTeam (for RRT)
+    coverage_period: Period | None  # On-duty period
+
+class Practitioner(BaseModel):
+    resourceType: str = "Practitioner"
+    id: str
+    identifier: list[Identifier]
+    name: list[HumanName]
+    qualification: list[Qualification]  # Role/specialty
+    active: bool  # On-duty status
+
+# Escalation-specific models
+class EscalationState(BaseModel):
+    alert_id: str
+    patient_id: str
+    current_level: int
+    started_at: datetime
+    level_history: list[EscalationLevelRecord]
+    notified_clinicians: list[NotifiedClinician]
+    status: EscalationStatus  # active | resolved | timed_out
+
+class EscalationEvent(BaseModel):
+    id: str
+    alert_id: str
+    event_type: str  # escalated | resolved | acknowledged | notified
+    level: int
+    clinician_id: str | None
+    timestamp: datetime
+    context: dict
+
+class EscalationConfig(BaseModel):
+    level_timeouts: dict[int, int]  # level -> seconds (default: {1: 300, 2: 600, 3: 900})
+    severity_max_levels: dict[str, int]  # severity -> max level
+    
+class HandoffSummary(BaseModel):
+    patient_ids: list[str]
+    active_alerts: list[Alert]
+    pending_escalations: list[EscalationState]
+    patients_requiring_attention: list[str]
+    recent_acknowledgments: list[Alert]
+    generated_at: datetime
+```
 
 ---
 
-## Frontend Methods
+## Frontend Components (Key Methods)
 
-### WebSocketClient
+### EscalationContext
 
-| Method | Input | Output | Purpose |
-|---|---|---|---|
-| `connect(url: string)` | WebSocket URL | void | Establish connection |
-| `disconnect()` | None | void | Close connection |
-| `onVitalsUpdate(callback)` | callback function | void | Register vitals update handler |
-| `onNewAlert(callback)` | callback function | void | Register alert handler |
-| `onAlertAcknowledged(callback)` | callback function | void | Register acknowledgment handler |
+```javascript
+// State shape
+{
+  careTeams: {},           // patient_id -> CareTeam FHIR resource
+  clinicians: [],          // Practitioner[] roster
+  escalations: {},         // alert_id -> EscalationState
+  notifications: [],       // EscalationEvent[] for selected clinician
+  selectedClinician: null, // current clinician identity
+  escalationConfig: {},    // severity -> max level mapping
+  demoMode: false          // real-time vs compressed
+}
 
-### AudioAlertManager
+// Reducer actions
+SET_CARE_TEAMS, UPDATE_CARE_TEAM, SET_CLINICIANS, UPDATE_CLINICIAN_STATUS,
+SET_ESCALATIONS, UPDATE_ESCALATION, REMOVE_ESCALATION,
+ADD_NOTIFICATION, CLEAR_NOTIFICATIONS, SET_SELECTED_CLINICIAN,
+SET_DEMO_MODE, SET_ESCALATION_CONFIG
+```
 
-| Method | Input | Output | Purpose |
-|---|---|---|---|
-| `playWarningSound()` | None | void | Play warning-level audio |
-| `playCriticalSound()` | None | void | Play critical-level audio |
-| `stopSound()` | None | void | Stop current audio playback |
-| `mute()` | None | void | Mute all audio |
-| `unmute()` | None | void | Unmute audio |
-| `isPlaying()` | None | boolean | Check if audio is currently playing |
+### CareTeamPage
 
-### State Management (useReducer actions)
+```javascript
+// Key methods
+fetchCareTeams()           // GET /api/care-team/assignments
+fetchClinicians()          // GET /api/care-team/clinicians
+handleReassign(patientId, clinicianId, level)  // PUT /api/care-team/assignments/{patientId}
+handleBulkHandoff(patientIds, toClinician)     // POST /api/care-team/handoff
+handleDutyToggle(clinicianId, onDuty)          // PUT /api/care-team/clinicians/{id}/status
+```
 
-| Action Type | Payload | Purpose |
+---
+
+## REST API Endpoints (New)
+
+| Endpoint | Method | Purpose |
 |---|---|---|
-| `UPDATE_VITALS` | { patientId, vitals } | Update patient's current vital signs |
-| `ADD_ALERT` | { alert } | Add new alert to active alerts list |
-| `ACKNOWLEDGE_ALERT` | { alertId, note, timestamp } | Move alert to acknowledged state |
-| `SET_PATIENTS` | { patients[] } | Initialize patient list |
-| `UPDATE_PATIENT_STATUS` | { patientId, status } | Update patient overall status |
+| `/api/care-team/clinicians` | GET | List all clinicians with duty status |
+| `/api/care-team/clinicians/{id}/status` | PUT | Set on-duty/off-duty |
+| `/api/care-team/assignments` | GET | List all patient care team assignments |
+| `/api/care-team/assignments/{patient_id}` | GET | Get care team for specific patient |
+| `/api/care-team/assignments/{patient_id}` | PUT | Update care team assignment |
+| `/api/care-team/handoff` | POST | Bulk handoff patients |
+| `/api/care-team/rrt/{patient_id}` | GET | Get RRT members for patient |
+| `/api/care-team/rrt/{patient_id}` | PUT | Set RRT members |
+| `/api/escalation/active` | GET | List all active escalations |
+| `/api/escalation/{alert_id}` | GET | Get escalation state for alert |
+| `/api/escalation/{alert_id}/timeline` | GET | Get escalation audit trail |
+| `/api/escalation/config` | GET | Get escalation configuration |
+| `/api/escalation/config` | PUT | Update escalation configuration |
+| `/api/escalation/demo-mode` | POST | Toggle demo mode |
+
+---
+
+## WebSocket Message Types (New)
+
+| Message Type | Direction | Payload |
+|---|---|---|
+| `escalation_event` | Server → Client | `{type: "escalated\|resolved\|acknowledged\|notified", alert_id, level, clinician_id, timestamp, context}` |
+| `care_team_updated` | Server → Client | `{patient_id, care_team: CareTeam}` |
+| `clinician_status_changed` | Server → Client | `{clinician_id, on_duty: bool}` |
+| `handoff_complete` | Server → Client | `{summary: HandoffSummary}` |
+

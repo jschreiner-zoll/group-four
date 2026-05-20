@@ -1,93 +1,139 @@
-# Service Definitions
-
-## Connected Care / Remote Patient Monitoring PoC
+# Service Definitions — Care Team Escalation Routing & Management
 
 ---
 
 ## Service Architecture Overview
 
-The application uses a simple service pattern within a single FastAPI process. Services coordinate between components without external message brokers or microservice boundaries.
+The escalation feature adds two new backend services and one new frontend service, all operating within the existing single-process FastAPI architecture. The key design principle is **loose coupling** — the escalation engine connects to the existing alert system via callback hooks, not direct integration.
 
 ---
 
-## Backend Services
+## New Backend Services
 
-### 1. Simulation Service
-**Responsibility**: Orchestrate the lifecycle of patient vital sign simulation
-
-**Interactions**:
-- Starts/stops background async tasks for each patient
-- Feeds generated vitals to the Alert Engine for threshold evaluation
-- Feeds generated vitals to the WebSocket Manager for client broadcast
-- Responds to simulation trigger/reset commands from REST endpoints
-
-**Orchestration Flow**:
-```
-[Simulation Loop] → generate_vitals(patient)
-                  → alert_engine.evaluate_vitals(patient_id, vitals)
-                  → websocket_manager.broadcast_vitals(vitals_data)
-                  → (if alert generated) websocket_manager.broadcast_alert(alert)
-```
-
-### 2. Alert Service
-**Responsibility**: Coordinate alert lifecycle from generation through acknowledgment
+### 1. Escalation Service
+**Responsibility**: Orchestrate the complete escalation lifecycle from alert creation through resolution
 
 **Interactions**:
-- Receives vitals from Simulation Service for threshold evaluation
-- Generates alerts and stores in memory
-- Broadcasts new alerts via WebSocket Manager
-- Processes acknowledgment commands from REST endpoints
-- Broadcasts acknowledgment updates via WebSocket Manager
+- Receives alert creation events via callback hook registered on AlertEngine
+- Receives acknowledgment events via callback hook registered on AlertEngine
+- Uses CareTeamManager to look up who to notify at each level
+- Uses EscalationTracker to manage escalation state
+- Uses VirtualClock to schedule time-based escalation transitions
+- Broadcasts escalation events via WebSocket Manager
 
-**Orchestration Flow**:
+**Orchestration Flow — Alert Created**:
 ```
-[Threshold Breach Detected]
-  → Create Alert object (severity, patient, vital, timestamp)
-  → Store in active_alerts list
-  → Update patient status (normal → warning/critical)
-  → websocket_manager.broadcast_alert(alert)
-
-[Acknowledgment Received]
-  → Validate alert exists and is active
-  → Update alert status to "acknowledged"
-  → Store clinician note and timestamp
-  → websocket_manager.broadcast(alert_acknowledged)
+[AlertEngine.on_alert_created hook fires]
+  -> EscalationEngine.on_alert_created(alert)
+  -> CareTeamManager.get_clinician_for_level(patient_id, level=1)
+  -> IF clinician is off-duty: get_next_available_level()
+  -> EscalationTracker.create_escalation(alert_id, patient_id, clinician)
+  -> notify_clinician(clinician_id, alert, level)
+  -> WebSocketManager.broadcast(escalation_event: notified)
+  -> VirtualClock.call_later(timeout, escalate_to_next_level)
+  -> EscalationTracker.set_pending_callback(alert_id, handle)
 ```
 
-### 3. Patient Data Service
-**Responsibility**: Maintain patient state and serve data queries
+**Orchestration Flow — Timer Expires (Escalate)**:
+```
+[VirtualClock callback fires]
+  -> EscalationEngine.escalate_to_next_level(alert_id)
+  -> EscalationTracker.get_escalation(alert_id)
+  -> Check max level for alert severity
+  -> IF at max level: stop (no further escalation)
+  -> CareTeamManager.get_clinician_for_level(patient_id, next_level)
+  -> IF clinician off-duty: skip to next available level
+  -> IF level == 4 (RRT): get_rrt_members() -> notify each
+  -> EscalationTracker.record_level_change(alert_id, new_level, clinician)
+  -> notify_clinician(clinician_id, alert, new_level)
+  -> WebSocketManager.broadcast(escalation_event: escalated)
+  -> VirtualClock.call_later(next_timeout, escalate_to_next_level)
+```
+
+**Orchestration Flow — Alert Acknowledged**:
+```
+[AlertEngine.on_alert_acknowledged hook fires]
+  -> EscalationEngine.on_alert_acknowledged(alert_id, acknowledged_by)
+  -> EscalationTracker.get_pending_callback(alert_id)
+  -> VirtualClock.cancel(callback_handle)
+  -> EscalationTracker.record_acknowledgment(alert_id, clinician_id)
+  -> EscalationTracker.complete_escalation(alert_id, "acknowledged")
+  -> notify_resolution(alert_id, acknowledged_by)
+  -> WebSocketManager.broadcast(escalation_event: resolved) to all notified clinicians
+```
+
+### 2. Care Team Service
+**Responsibility**: Manage care team assignments, clinician roster, and shift operations
 
 **Interactions**:
-- Provides patient registry data to REST endpoints
-- Updates patient status based on alert engine evaluations
-- Serves initial patient data on frontend connection
+- Serves REST endpoints for care team CRUD
+- Provides clinician lookup for Escalation Service
+- Generates handoff summaries using EscalationTracker data
+- Broadcasts care team changes via WebSocket Manager
+
+**Orchestration Flow — Bulk Handoff**:
+```
+[POST /api/care-team/handoff received]
+  -> CareTeamManager.generate_handoff_summary(patient_ids, outgoing_clinician)
+  -> CareTeamManager.bulk_handoff(patient_ids, to_clinician, level)
+  -> Update active escalations if affected patients have pending escalations
+  -> WebSocketManager.broadcast(handoff_complete: summary)
+  -> WebSocketManager.broadcast(care_team_updated) per patient
+```
+
+**Orchestration Flow — Duty Status Change**:
+```
+[PUT /api/care-team/clinicians/{id}/status received]
+  -> CareTeamManager.set_duty_status(clinician_id, on_duty)
+  -> IF going off-duty: check active escalations targeting this clinician
+  -> IF active escalation at this clinician's level: escalate immediately to next
+  -> WebSocketManager.broadcast(clinician_status_changed)
+```
+
+### 3. Virtual Clock Service
+**Responsibility**: Provide time abstraction for all escalation timer operations
+
+**Interactions**:
+- Used by Escalation Service for scheduling callbacks
+- Controlled by demo mode toggle (REST endpoint)
+- Referenced by EscalationTracker for timestamp recording
+
+**Orchestration Flow — Demo Mode Toggle**:
+```
+[POST /api/escalation/demo-mode received]
+  -> VirtualClock.set_time_scale(30.0 if demo else 1.0)
+  -> All future call_later() calls use scaled delays
+  -> Existing pending callbacks are NOT rescheduled (only new ones use new scale)
+  -> WebSocketManager.broadcast(demo_mode_changed)
+```
 
 ---
 
-## Frontend Services
+## New Frontend Service
 
-### 4. Real-Time Data Service (WebSocketClient + Context)
-**Responsibility**: Manage real-time data flow from backend to UI components
-
-**Orchestration Flow**:
-```
-[WebSocket Message Received]
-  → Parse message type
-  → IF vitals_update: dispatch UPDATE_VITALS action
-  → IF new_alert: dispatch ADD_ALERT action + trigger AudioAlertManager
-  → IF alert_acknowledged: dispatch ACKNOWLEDGE_ALERT action
-```
-
-### 5. Audio Alert Service (AudioAlertManager)
-**Responsibility**: Manage audio notifications with priority and queue
+### 4. Escalation Real-Time Service (EscalationContext + WebSocket)
+**Responsibility**: Manage escalation-specific real-time data flow
 
 **Orchestration Flow**:
 ```
-[New Alert Received]
-  → Check severity (warning vs critical)
-  → IF critical: playCriticalSound() (interrupts warning)
-  → IF warning: playWarningSound() (queued if critical playing)
-  → On acknowledgment: stopSound() for that alert
+[WebSocket escalation_event received]
+  -> Parse event type (escalated | resolved | acknowledged | notified)
+  -> IF type == "escalated" or "notified":
+     -> dispatch UPDATE_ESCALATION
+     -> IF target clinician matches selectedClinician: dispatch ADD_NOTIFICATION
+  -> IF type == "resolved" or "acknowledged":
+     -> dispatch REMOVE_ESCALATION
+     -> IF selectedClinician was notified: dispatch ADD_NOTIFICATION (resolution)
+
+[WebSocket care_team_updated received]
+  -> dispatch UPDATE_CARE_TEAM
+
+[WebSocket clinician_status_changed received]
+  -> dispatch UPDATE_CLINICIAN_STATUS
+
+[WebSocket handoff_complete received]
+  -> dispatch SET_HANDOFF_SUMMARY
+  -> Show ShiftHandoffCard
 ```
 
 ---
@@ -96,19 +142,40 @@ The application uses a simple service pattern within a single FastAPI process. S
 
 ```
 +-------------------+       +------------------+       +-------------------+
-|   Simulation      | ----> |   Alert Engine   | ----> |   WebSocket Mgr   |
-|   Service         |       |   Service        |       |   (broadcast)     |
+|   Alert Engine    | -hook-> | Escalation      | ----> |   WebSocket Mgr   |
+|   (existing)      |       |   Engine (NEW)   |       |   (broadcast)     |
 +-------------------+       +------------------+       +-------------------+
-        |                           |                           |
-        v                           v                           v
-+-------------------+       +------------------+       +-------------------+
-|   Patient Data    |       |   In-Memory      |       |   React Frontend  |
-|   Service         |       |   Alert Store    |       |   (via WS)        |
-+-------------------+       +------------------+       +-------------------+
-                                                                |
-                                                                v
-                                                       +-------------------+
-                                                       |   Audio Alert     |
-                                                       |   Manager         |
-                                                       +-------------------+
+                                    |       |                    |
+                                    v       v                    v
+                            +--------+  +--------+      +-------------------+
+                            | Care   |  | Escal. |      |   React Frontend  |
+                            | Team   |  | Tracker|      |   (via WS)        |
+                            | Mgr    |  | (NEW)  |      +-------------------+
+                            | (NEW)  |  +--------+              |
+                            +--------+      |                   v
+                                    |       |           +-------------------+
+                                    v       v           | EscalationContext |
+                            +------------------+        |   (NEW)           |
+                            |  Virtual Clock   |        +-------------------+
+                            |  (NEW)           |                |
+                            +------------------+                v
+                                                        +-------------------+
+                                                        | CareTeamPage      |
+                                                        | (NEW)             |
+                                                        +-------------------+
 ```
+
+---
+
+## Integration with Existing Services
+
+| Existing Service | Integration Point | Change Type |
+|---|---|---|
+| Alert Service (AlertEngine) | Register on_alert_created and on_alert_acknowledged hooks | Minor extension (add hook registration) |
+| WebSocket Manager | New message types broadcast | Minor extension (new broadcast calls) |
+| Simulation Service | Demo mode toggle affects VirtualClock | New endpoint, no existing code change |
+| Patient Data Service | No direct changes | Unchanged |
+| Audio Alert Service | No changes | Unchanged |
+
+**Key Principle**: The existing AlertEngine gains two hook registration points but its internal logic remains unchanged. All escalation logic lives in the new EscalationEngine module.
+

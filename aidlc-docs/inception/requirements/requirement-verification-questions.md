@@ -1,143 +1,124 @@
-# Requirements Verification Questions
+# Care Team Escalation Routing — Requirements Clarification Questions
 
-## Connected Care / Remote Patient Monitoring PoC
-
-Please answer the following questions to help clarify the requirements. Fill in the letter choice after each [Answer]: tag. If none of the options match your needs, choose "Other" and describe your preference.
+Please answer the following questions to help clarify the requirements for the Care Team Escalation Routing & Management feature. Fill in the letter choice after each [Answer]: tag.
 
 ---
 
 ## Question 1
-What technology stack would you prefer for this PoC?
+How should care team data be stored, given the existing in-memory architecture?
 
-A) React (frontend) + Node.js/Express (backend) + WebSocket for real-time
-B) Next.js (full-stack) + WebSocket for real-time
-C) React (frontend) + Python/FastAPI (backend) + WebSocket for real-time
-D) Vue.js (frontend) + Node.js/Express (backend) + WebSocket for real-time
-X) Other (please describe after [Answer]: tag below)
+A) In-memory only (consistent with existing PoC approach — data resets on restart)
+B) Add a lightweight database (SQLite) for care team assignments and escalation history persistence
+C) In-memory for runtime state, with JSON file export/import for care team configurations
+D) Other (please describe after [Answer]: tag below)
 
-[Answer]: C
+[Answer]: 
 
 ## Question 2
-What vital signs should the simulated IoT devices generate?
+How should the escalation timer mechanism work in the backend?
 
-A) Heart rate, blood pressure, SpO2 (oxygen saturation), and temperature only
-B) Heart rate, blood pressure, SpO2, temperature, and respiratory rate
-C) Heart rate, blood pressure, SpO2, temperature, respiratory rate, and ECG waveform
-D) All of the above plus blood glucose
-X) Other (please describe after [Answer]: tag below)
+A) Background async task per active alert that checks elapsed time every second
+B) A single periodic scheduler (e.g., every 5 seconds) that scans all active alerts and escalates any that have exceeded their time threshold
+C) Event-driven with scheduled callbacks (asyncio.call_later) per alert
+D) Other (please describe after [Answer]: tag below)
 
-[Answer]: D
+[Answer]: 
 
 ## Question 3
-How many simulated patients should the system support for the PoC?
+How should "notifications" to care team members be delivered in this PoC?
 
-A) 5 patients
-B) 10 patients
-C) 20 patients
-D) 50 patients
-X) Other (please describe after [Answer]: tag below)
+A) WebSocket push to all connected clients — the frontend filters and displays relevant notifications per clinician role (no actual user login/identity)
+B) WebSocket push with a simple clinician selector (dropdown to "act as" a specific clinician) — notifications appear only for the selected role
+C) Simple in-app notification panel visible to all users (no role-based filtering) — all escalation events shown to everyone
+D) Other (please describe after [Answer]: tag below)
 
-[Answer]: B
+[Answer]: 
 
 ## Question 4
-What database would you prefer for storing patient data and alerts?
+For the care team management interface, what level of UI complexity is appropriate?
 
-A) In-memory only (no persistence, simplest for PoC)
-B) SQLite (lightweight, file-based persistence)
-C) PostgreSQL (production-grade relational database)
-D) MongoDB (document-based, flexible schema)
-X) Other (please describe after [Answer]: tag below)
+A) A dedicated full page (new route/tab) with tables, forms, and bulk operations
+B) A slide-out panel accessible from the dashboard (similar to PatientDetailPanel)
+C) A modal dialog with tabbed sections (Assignments, Shift Handoff, Audit Trail)
+D) Other (please describe after [Answer]: tag below)
 
-[Answer]: A
+[Answer]: 
 
 ## Question 5
-Should the clinician interface require authentication/login?
+How should the "Rapid Response Team" (Level 4) be modeled?
 
-A) Yes — simple username/password login (no registration, pre-seeded accounts)
-B) Yes — full authentication with registration and role-based access
-C) No — open access for PoC simplicity
-X) Other (please describe after [Answer]: tag below)
+A) As a single team entity (not individual clinicians) — escalation to RRT triggers a team-wide page/notification
+B) As a named group with individual members listed — each member gets notified individually
+C) As a simple flag/status on the alert (no specific team members) — just indicates RRT has been paged
+D) Other (please describe after [Answer]: tag below)
 
-[Answer]: C
+[Answer]: 
 
 ## Question 6
-For the "simulate medical conditions" button (requirement c), what behavior do you expect?
+For the demo/simulation mode (compressed escalation timers), how should it integrate?
 
-A) A single button per patient that triggers a random critical condition (e.g., tachycardia, hypoxia)
-B) Multiple buttons per patient, each simulating a specific condition (e.g., "Simulate Tachycardia", "Simulate Hypoxia")
-C) A dropdown menu to select which condition to simulate, then a "Trigger" button
-X) Other (please describe after [Answer]: tag below)
+A) A toggle on the existing SimulationControls that switches between real-time (5/10/15 min) and demo mode (10/20/30 sec)
+B) A separate "Escalation Demo" panel with its own fire-alert button and visible countdown timers
+C) Configurable time multiplier (e.g., slider from 1x to 30x speed) applied globally to all escalation timers
+D) Other (please describe after [Answer]: tag below)
 
-[Answer]: B
+[Answer]: 
 
 ## Question 7
-How should alerts be delivered to clinicians?
+How should the shift handoff summary be triggered and displayed?
 
-A) Visual alerts on the dashboard only (color changes, badges, alert panel)
-B) Visual alerts + browser push notifications
-C) Visual alerts + audio alerts (alarm sounds)
-D) Visual alerts + audio alerts + browser push notifications
-X) Other (please describe after [Answer]: tag below)
+A) Auto-generated as a downloadable report (PDF/printable view) when bulk reassignment occurs
+B) Auto-generated as an in-app summary panel that appears after bulk handoff completes
+C) Both — in-app summary immediately visible, with option to export/print
+D) Other (please describe after [Answer]: tag below)
 
-[Answer]: C
+[Answer]: 
 
 ## Question 8
-When a clinician acknowledges an alert, what should happen?
+Should the escalation feature support alert severity filtering (i.e., only critical alerts escalate to RRT)?
 
-A) Alert moves to "Acknowledged" state with the note, remains visible in history
-B) Alert is dismissed from the active view, stored in a separate history/log
-C) Alert changes color/status on dashboard, note is visible to all clinicians
-X) Other (please describe after [Answer]: tag below)
+A) Yes — only CRITICAL severity alerts can reach Level 4 (RRT). WARNING alerts stop escalating at Level 3 (Physician)
+B) No — all alerts follow the full 4-level cascade regardless of severity
+C) Configurable per alert severity — supervisor can set max escalation level per severity type
+D) Other (please describe after [Answer]: tag below)
 
-[Answer]: A
+[Answer]: 
 
 ## Question 9
-What "standard remote patient monitoring platform design" elements are most important to you (requirement g)?
+How should the escalation audit trail be accessed?
 
-A) Patient list with status indicators + individual patient detail view + alert management panel
-B) Multi-patient grid/tile view with real-time vitals + alert sidebar
-C) Clinical dashboard with patient census, trending charts, and alert queue (similar to Philips/GE monitoring systems)
-D) All of the above combined into a comprehensive layout
-X) Other (please describe after [Answer]: tag below)
+A) Inline on the AlertCard — expandable section showing the timeline directly on the alert
+B) A dedicated "Escalation History" tab/view accessible from the alert or a separate page
+C) Both — brief inline summary on the AlertCard with a "View Full Timeline" link to detailed view
+D) Other (please describe after [Answer]: tag below)
 
-[Answer]: B
+[Answer]: 
 
 ## Question 10
-Should the dashboard display historical vital sign trends (charts/graphs)?
+How many clinicians should be pre-populated in the demo system?
 
-A) Yes — real-time line charts showing last 30 minutes of data per vital sign
-B) Yes — real-time charts showing last 1 hour of data
-C) No — only show current/latest vital sign values (simplest for PoC)
-X) Other (please describe after [Answer]: tag below)
+A) Minimal (4 clinicians — one per escalation level: 1 primary nurse, 1 charge nurse, 1 physician, 1 RRT)
+B) Moderate (8-10 clinicians — multiple nurses, 2 physicians, 1 RRT, allowing shift change demos)
+C) Realistic (12-15 clinicians — full shift roster with day/night teams for realistic handoff scenarios)
+D) Other (please describe after [Answer]: tag below)
 
-[Answer]: C
+[Answer]: 
 
-## Question 11
-What is the desired data update frequency for the simulated vitals?
-
-A) Every 1 second (high frequency, most realistic)
-B) Every 3 seconds
-C) Every 5 seconds
-D) Every 10 seconds (lower frequency, less resource intensive)
-X) Other (please describe after [Answer]: tag below)
-
-[Answer]: C
-
-## Question 12: Property-Based Testing Extension
+## Question 11: Property-Based Testing Extension
 Should property-based testing (PBT) rules be enforced for this project?
 
 A) Yes — enforce all PBT rules as blocking constraints (recommended for projects with business logic, data transformations, serialization, or stateful components)
 B) Partial — enforce PBT rules only for pure functions and serialization round-trips (suitable for projects with limited algorithmic complexity)
 C) No — skip all PBT rules (suitable for simple CRUD applications, UI-only projects, or thin integration layers with no significant business logic)
-X) Other (please describe after [Answer]: tag below)
+D) Other (please describe after [Answer]: tag below)
 
-[Answer]: C
+[Answer]: 
 
-## Question 13: Security Extensions
+## Question 12: Security Extensions
 Should security extension rules be enforced for this project?
 
 A) Yes — enforce all SECURITY rules as blocking constraints (recommended for production-grade applications)
 B) No — skip all SECURITY rules (suitable for PoCs, prototypes, and experimental projects)
-X) Other (please describe after [Answer]: tag below)
+C) Other (please describe after [Answer]: tag below)
 
-[Answer]: B
+[Answer]: 

@@ -25,6 +25,34 @@ class AlertEngine:
         # Cooldown tracking: (patient_id, vital_sign) -> {"acknowledged_at": datetime, "returned_to_normal": bool}
         self._cooldowns: dict[tuple[str, str], dict] = {}
         self._cooldown_seconds = 60
+        # Hook callbacks for escalation integration (loosely coupled)
+        self._on_created_hooks: list = []
+        self._on_acknowledged_hooks: list = []
+
+    def register_hook(self, event: str, callback) -> None:
+        """Register a callback hook for alert lifecycle events.
+
+        Args:
+            event: 'on_created' or 'on_acknowledged'
+            callback: Function to call when event occurs
+        """
+        if event == "on_created":
+            self._on_created_hooks.append(callback)
+        elif event == "on_acknowledged":
+            self._on_acknowledged_hooks.append(callback)
+
+    def _fire_hooks(self, event: str, *args, **kwargs) -> None:
+        """Fire all registered hooks for an event."""
+        hooks = []
+        if event == "on_created":
+            hooks = self._on_created_hooks
+        elif event == "on_acknowledged":
+            hooks = self._on_acknowledged_hooks
+        for hook in hooks:
+            try:
+                hook(*args, **kwargs)
+            except Exception:
+                pass  # Don't let hook failures break alert engine
 
     def set_patient_names(self, patient_map: dict[str, str]):
         """Set patient ID to name mapping for alert display."""
@@ -83,6 +111,8 @@ class AlertEngine:
                 self.active_alerts.append(alert)
                 new_alerts.append(alert)
                 self._increment_breach_count(patient_id, vital_sign)
+                # Fire on_created hooks for escalation integration
+                self._fire_hooks("on_created", alert)
             else:
                 # Existing breach — increment and check escalation
                 count = self._increment_breach_count(patient_id, vital_sign)
@@ -232,6 +262,9 @@ class AlertEngine:
             "acknowledged_at": datetime.now(timezone.utc),
             "returned_to_normal": False,
         }
+
+        # Fire on_acknowledged hooks for escalation integration
+        self._fire_hooks("on_acknowledged", alert_id, note)
 
         return alert
 
