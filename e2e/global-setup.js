@@ -1,11 +1,12 @@
 /**
  * Global setup: Triggers a condition for each patient before tests run.
- * This ensures the system is in an active state with alerts generated.
+ * This ensures alerts are generated and the system is in an active state.
  */
 const { request } = require('@playwright/test');
 
-const API_BASE = 'http://localhost:8001/api';
+const API_BASE = 'http://localhost:8000/api';
 
+// Assign one condition per patient (round-robin through 6 conditions for 10 patients)
 const CONDITIONS = [
   'tachycardia',
   'bradycardia',
@@ -13,17 +14,13 @@ const CONDITIONS = [
   'hyperthermia',
   'hypotension',
   'hyperglycemia',
-  'tachycardia',
-  'bradycardia',
-  'hypoxia',
-  'hyperthermia',
 ];
 
 async function globalSetup() {
   const context = await request.newContext({ baseURL: API_BASE });
 
   // Wait for backend to be ready
-  let retries = 15;
+  let retries = 10;
   while (retries > 0) {
     try {
       const response = await context.get('/patients');
@@ -43,28 +40,25 @@ async function globalSetup() {
   const response = await context.get('/patients');
   const patients = await response.json();
 
-  console.log(`\n  Found ${patients.length} patients. Triggering conditions...\n`);
-
   // Trigger a condition for each patient
   for (let i = 0; i < patients.length; i++) {
     const patient = patients[i];
-    const condition = CONDITIONS[i];
+    const condition = CONDITIONS[i % CONDITIONS.length];
 
     const simResponse = await context.post(`/patients/${patient.id}/simulate`, {
       data: { condition },
     });
 
     if (simResponse.ok()) {
-      console.log(`  ✓ ${patient.name} → ${condition}`);
+      console.log(`  ✓ Triggered ${condition} for ${patient.name} (${patient.id})`);
     } else {
-      console.warn(`  ✗ Failed: ${patient.name} → ${condition} (${simResponse.status()})`);
+      console.warn(`  ✗ Failed to trigger ${condition} for ${patient.name}: ${simResponse.status()}`);
     }
   }
 
-  // Wait for two vitals cycles so alerts are generated
-  console.log('\n  Waiting for vitals cycles to generate alerts...');
-  await new Promise((r) => setTimeout(r, 11000));
-  console.log('  ✓ Setup complete. Running tests.\n');
+  // Wait one simulation cycle (5s) so alerts are generated before tests start
+  console.log('  Waiting for first vitals cycle to generate alerts...');
+  await new Promise((r) => setTimeout(r, 6000));
 
   await context.dispose();
 }
