@@ -263,21 +263,16 @@ class VitalSignsSimulator:
         return True
 
     def reset_patient(self, patient_id: str) -> bool:
-        """Initiate gradual recovery for all active conditions on a patient."""
+        """Immediately snap patient back to normal values (no gradual recovery)."""
         if patient_id not in self.patients:
             return False
 
-        conditions = self.active_conditions[patient_id]
-        if not conditions:
-            return True
+        # Clear all active conditions immediately
+        self.active_conditions[patient_id] = {}
 
-        # Set all conditions to recovering
-        for record in conditions.values():
-            if not record.recovering:
-                record.recovering = True
-                record.recovery_readings_remaining = RECOVERY_READINGS
-
-        # Clear patient's active_conditions display
-        self.patients[patient_id].active_conditions = []
+        # Clear patient's active_conditions display and reset status
+        patient = self.patients[patient_id]
+        patient.active_conditions = []
+        patient.status = PatientStatus.NORMAL
 
         return True
