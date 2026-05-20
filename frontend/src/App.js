@@ -136,7 +136,6 @@ function AppContent() {
     <div style={layoutStyle}>
       {/* Sidebar Navigation */}
       <nav style={sidebarStyle} aria-label="Main navigation">
-        <div style={logoStyle}>Connected Care RPM</div>
         <div style={navStyle}>
           <button
             style={navItemStyle(activePage === 'dashboard')}
