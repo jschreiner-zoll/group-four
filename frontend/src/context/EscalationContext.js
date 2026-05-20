@@ -78,6 +78,31 @@ export function EscalationProvider({ children }) {
     fetchInitialData();
   }, []);
 
+  // Periodically refresh escalation state (every 5 seconds) to stay in sync
+  useEffect(() => {
+    const interval = setInterval(async () => {
+      try {
+        const res = await fetch(`${API_BASE}/api/escalation/active`);
+        if (res.ok) {
+          const escalations = await res.json();
+          const escalationMap = {};
+          escalations.forEach((e) => {
+            if (e.alert_ids && e.alert_ids.length > 0) {
+              e.alert_ids.forEach((alertId) => {
+                escalationMap[alertId] = e;
+              });
+            }
+          });
+          dispatch({ type: ESCALATION_ACTIONS.SET_ESCALATIONS, payload: escalationMap });
+        }
+      } catch (error) {
+        // Silently fail on refresh errors
+      }
+    }, 5000);
+
+    return () => clearInterval(interval);
+  }, []);
+
   // Handle WebSocket messages for escalation events via wsClient
   useEffect(() => {
     wsClient.onEscalationEvent((data) => {

@@ -15,7 +15,13 @@ const LEVEL_BORDER_COLORS = {
 };
 
 export default function EscalationStatusPanel({ escalation }) {
-  if (!escalation || escalation.status !== 'active') {
+  if (!escalation) {
+    return null;
+  }
+
+  // Accept both full escalation state (from API) and partial event data (from WebSocket)
+  // If status exists and is not 'active', hide the panel
+  if (escalation.status && escalation.status !== 'active') {
     return null;
   }
 
