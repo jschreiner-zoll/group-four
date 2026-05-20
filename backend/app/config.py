@@ -125,3 +125,26 @@ SEED_PATIENTS = [
     {"name": "David Anderson", "age": 76, "room": "Room 205-A"},
     {"name": "Linda Thomas", "age": 69, "room": "Room 205-B"},
 ]
+
+
+# --- Care Team Escalation Configuration ---
+
+# Default escalation timeouts per level (seconds)
+# Level N timeout = time before escalating from Level N to Level N+1
+ESCALATION_LEVEL_TIMEOUTS = {
+    1: 300,  # 5 minutes at Level 1 before escalating to Level 2
+    2: 300,  # 5 minutes at Level 2 before escalating to Level 3
+    3: 300,  # 5 minutes at Level 3 before escalating to Level 4
+}
+
+# Maximum escalation level per alert severity
+SEVERITY_MAX_LEVELS = {
+    "Warning": 3,   # WARNING alerts stop at Level 3 (Physician)
+    "Critical": 4,  # CRITICAL alerts reach Level 4 (RRT)
+}
+
+# Demo mode time scale (30x = 300 seconds becomes 10 seconds)
+DEMO_TIME_SCALE = 30.0
+
+# Handoff summary time window (seconds) — last 1 hour
+HANDOFF_SUMMARY_WINDOW = 3600

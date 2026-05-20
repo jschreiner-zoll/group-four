@@ -4,8 +4,7 @@
 
 import React, { useEffect } from 'react';
 import DashboardTemplate from '../templates/DashboardTemplate';
-import { AppProvider, useAppDispatch, useAppState } from '../context/AppContext';
-import { LanguageProvider } from '../context/LanguageContext';
+import { useAppDispatch, useAppState } from '../context/AppContext';
 import { ACTIONS } from '../context/appReducer';
 import wsClient from '../services/websocketClient';
 import audioAlertManager from '../services/audioAlertManager';
@@ -87,11 +86,5 @@ function DashboardPageInner() {
 }
 
 export default function DashboardPage() {
-  return (
-    <AppProvider>
-      <LanguageProvider>
-        <DashboardPageInner />
-      </LanguageProvider>
-    </AppProvider>
-  );
+  return <DashboardPageInner />;
 }

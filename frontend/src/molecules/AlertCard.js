@@ -1,13 +1,15 @@
 /**
  * AlertCard - Displays a single alert with details and acknowledge action.
+ * Enhanced with EscalationStatusPanel for care team escalation routing.
  */
 
 import { useState } from 'react';
 import { AlertTriangle, AlertOctagon } from 'lucide-react';
 import { acknowledgeAlert } from '../services/api';
 import { useLanguage } from '../context/LanguageContext';
+import EscalationStatusPanel from './EscalationStatusPanel';
 
-export default function AlertCard({ alert, onFormOpen, onFormClose, isNew = false }) {
+export default function AlertCard({ alert, escalation, onFormOpen, onFormClose, isNew = false }) {
   const [showForm, setShowForm] = useState(false);
   const [note, setNote] = useState('');
   const [submitting, setSubmitting] = useState(false);
@@ -76,6 +78,9 @@ export default function AlertCard({ alert, onFormOpen, onFormClose, isNew = fals
           {t('acknowledge')}
         </button>
       )}
+
+      {/* Escalation Status Panel — shows when escalation is active */}
+      {escalation && <EscalationStatusPanel escalation={escalation} />}
 
       {!isAcknowledged && showForm && (
         <form className="alert-card__acknowledge-form" onSubmit={handleAcknowledge}>

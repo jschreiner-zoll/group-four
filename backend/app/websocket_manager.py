@@ -54,6 +54,44 @@ class WebSocketManager:
         }
         await self._broadcast(message)
 
+    def broadcast_escalation_event(self, event_data: dict):
+        """Broadcast escalation event to all connected clients (sync wrapper).
+
+        Called from EscalationEngine which may not be in async context.
+        Uses fire-and-forget pattern for WebSocket broadcast.
+        """
+        import asyncio
+
+        message = {
+            "type": "escalation_event",
+            "data": event_data,
+        }
+        try:
+            loop = asyncio.get_event_loop()
+            if loop.is_running():
+                loop.create_task(self._broadcast(message))
+            else:
+                loop.run_until_complete(self._broadcast(message))
+        except RuntimeError:
+            pass  # No event loop available (e.g., during testing)
+
+    def broadcast_care_team_updated(self, data: dict):
+        """Broadcast care team update to all connected clients."""
+        import asyncio
+
+        message = {
+            "type": "care_team_updated",
+            "data": data,
+        }
+        try:
+            loop = asyncio.get_event_loop()
+            if loop.is_running():
+                loop.create_task(self._broadcast(message))
+            else:
+                loop.run_until_complete(self._broadcast(message))
+        except RuntimeError:
+            pass
+
     async def _broadcast(self, message: dict):
         """Send a message to all connected clients. Remove disconnected clients."""
         disconnected = []

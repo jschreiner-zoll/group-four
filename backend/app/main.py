@@ -6,16 +6,29 @@ from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.alerts import AlertEngine
+from app.care_team import CareTeamManager, router as care_team_router, set_manager as set_care_team_manager
+from app.escalation import EscalationEngine, router as escalation_router, set_engine as set_escalation_engine
+from app.escalation_tracker import EscalationTracker
 from app.models import AlertSeverity, VitalReading
 from app.patients import router as patients_router
 from app.patients import set_dependencies
 from app.simulator import VitalSignsSimulator
+from app.virtual_clock import VirtualClock
 from app.websocket_manager import WebSocketManager
 
 # Global instances
 simulator = VitalSignsSimulator()
 alert_engine = AlertEngine()
 ws_manager = WebSocketManager()
+virtual_clock = VirtualClock()
+care_team_manager = CareTeamManager()
+escalation_tracker = EscalationTracker()
+escalation_engine = EscalationEngine(
+    care_team_manager=care_team_manager,
+    escalation_tracker=escalation_tracker,
+    virtual_clock=virtual_clock,
+    ws_manager=ws_manager,
+)
 
 
 async def on_vitals_generated(patient_id: str, vitals: VitalReading):
@@ -107,10 +120,22 @@ async def lifespan(app: FastAPI):
     alert_engine.set_patient_names(patient_names)
     simulator.set_vitals_callback(on_vitals_generated)
     set_dependencies(simulator, alert_engine, ws_manager)
+
+    # Initialize care team escalation system
+    patient_ids = [p.id for p in simulator.get_patients()]
+    care_team_manager.initialize_default_assignments(patient_ids)
+    set_care_team_manager(care_team_manager)
+    set_escalation_engine(escalation_engine)
+
+    # Register escalation hooks on alert engine (loosely coupled)
+    alert_engine.register_hook("on_created", escalation_engine.on_alert_created)
+    alert_engine.register_hook("on_acknowledged", escalation_engine.on_alert_acknowledged)
+
     simulator.start_simulation()
     yield
     # Shutdown
     simulator.stop_simulation()
+    virtual_clock.reset()
 
 
 app = FastAPI(
@@ -131,6 +156,8 @@ app.add_middleware(
 
 # Include REST routes
 app.include_router(patients_router)
+app.include_router(care_team_router)
+app.include_router(escalation_router)
 
 
 @app.websocket("/ws")

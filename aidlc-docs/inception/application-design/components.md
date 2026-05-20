@@ -1,182 +1,229 @@
-# Component Definitions
+# Component Definitions — Care Team Escalation Routing & Management
 
-## Connected Care / Remote Patient Monitoring PoC
-
----
-
-## Backend Components (Python/FastAPI)
-
-### 1. Vital Signs Simulator (`simulator.py`)
-**Purpose**: Generate realistic simulated vital sign data for 10 virtual patients
-
-**Responsibilities**:
-- Maintain patient registry with demographic data
-- Generate physiologically realistic vital signs at 5-second intervals
-- Support condition simulation (tachycardia, bradycardia, hypoxia, etc.)
-- Provide "return to normal" reset capability per patient
-- Run as background async tasks within the FastAPI server
-
-### 2. Alert Engine (`alerts.py`)
-**Purpose**: Evaluate vital signs against thresholds and generate alerts
-
-**Responsibilities**:
-- Monitor incoming vital sign data against configurable thresholds
-- Generate alerts with severity classification (warning/critical)
-- Manage alert lifecycle (active → acknowledged)
-- Store alert history in memory
-- Push new alerts to connected clients via WebSocket
-
-### 3. Patient Manager (`patients.py`)
-**Purpose**: Manage patient data and provide REST/WebSocket endpoints
-
-**Responsibilities**:
-- Maintain in-memory patient state (demographics + current vitals + status)
-- Expose REST endpoints for patient data queries
-- Expose REST endpoints for commands (trigger simulation, acknowledge alert)
-- Broadcast real-time vital updates via WebSocket
-
-### 4. WebSocket Manager (`websocket_manager.py`)
-**Purpose**: Manage WebSocket connections and message broadcasting
-
-**Responsibilities**:
-- Track active WebSocket connections
-- Broadcast vital sign updates to all connected clients
-- Broadcast alert notifications to all connected clients
-- Handle connection/disconnection lifecycle
-
-### 5. Data Models (`models.py`)
-**Purpose**: Define data structures for the application
-
-**Responsibilities**:
-- Define Patient, VitalSigns, Alert, and AlertAcknowledgment data models
-- Provide serialization/deserialization for WebSocket messages
-- Define threshold configuration structures
+## Connected Care / Remote Patient Monitoring — Feature Extension
 
 ---
 
-## Frontend Components (React — Atomic Design)
+## New Backend Components (Python/FastAPI)
 
-### Atoms (Smallest UI elements)
-
-### 6. VitalSignBadge
-**Purpose**: Display a single vital sign value with status color coding
+### 1. Escalation Engine (`escalation.py`)
+**Purpose**: Manage time-based alert escalation cascades using event-driven callbacks
 
 **Responsibilities**:
-- Render vital sign label, value, and unit
-- Apply WCAG 2.0 compliant color based on status (normal/warning/critical)
-- Include non-color status indicator (icon)
+- Register as a hook/callback on the existing AlertEngine (loosely coupled)
+- Start escalation cascade when new alerts are created
+- Schedule escalation level transitions using virtual clock callbacks
+- Cancel pending escalations when alerts are acknowledged
+- Track escalation state via EscalationTracker
+- Broadcast escalation events via WebSocket
+- Support configurable max escalation level per severity type
+- Notify all previously-notified team members on resolution
 
-### 7. StatusIndicator
-**Purpose**: Show patient overall status (normal/warning/critical)
-
-**Responsibilities**:
-- Render colored dot/icon with text label
-- WCAG 2.0 AA compliant colors
-- Accessible to screen readers
-
-### 8. AlertBadge
-**Purpose**: Display alert count or severity indicator
+### 2. Care Team Manager (`care_team.py`)
+**Purpose**: Manage care team assignments, clinician roster, and shift operations
 
 **Responsibilities**:
-- Show number of active alerts
-- Color-coded by highest severity
-- Accessible label for screen readers
+- Maintain in-memory clinician roster with duty status
+- Manage patient-to-care-team assignments (FHIR CareTeam resources)
+- Handle patient reassignment between clinicians
+- Support bulk handoff operations
+- Generate shift handoff summaries
+- Provide care team lookup for escalation routing
+- Expose REST endpoints for care team CRUD operations
 
-### Molecules (Combinations of atoms)
-
-### 9. PatientTile
-**Purpose**: Display a single patient's summary with all current vitals
-
-**Responsibilities**:
-- Render patient name, room/bed, and overall status
-- Display all 7 vital sign values using VitalSignBadge atoms
-- Show active alert count
-- Provide click-through to patient detail view
-- Display condition simulation buttons
-
-### 10. AlertCard
-**Purpose**: Display a single alert with details and acknowledge action
+### 3. Escalation Tracker (`escalation_tracker.py`)
+**Purpose**: Track and manage escalation state for all active alert escalations
 
 **Responsibilities**:
-- Show alert severity, patient name, vital sign, threshold breached, timestamp
-- Provide "Acknowledge" button with note input field
-- Visual distinction between active and acknowledged states
+- Maintain collection of active EscalationState objects (keyed by alert_id)
+- Provide query methods (get by alert, get by clinician, get by patient)
+- Record escalation history (who notified, when, at what level)
+- Track response times per escalation level
+- Provide audit trail data for any alert's escalation timeline
+- Manage scheduled callback references for cancellation
 
-### 11. SimulationControls
-**Purpose**: Provide buttons to trigger medical condition simulations
-
-**Responsibilities**:
-- Render individual buttons for each condition (Tachycardia, Bradycardia, Hypoxia, etc.)
-- Include "Return to Normal" reset button
-- Disable buttons when condition is already active
-
-### Organisms (Complex UI sections)
-
-### 12. PatientGrid
-**Purpose**: Multi-patient tile grid showing all patients simultaneously
+### 4. Virtual Clock (`virtual_clock.py`)
+**Purpose**: Provide time abstraction for escalation timers supporting real-time and demo modes
 
 **Responsibilities**:
-- Render responsive grid of PatientTile molecules
-- Sort/highlight patients by severity
-- Handle real-time updates from WebSocket
+- Provide current time (real or simulated)
+- Schedule callbacks with time-aware delays (real seconds or compressed)
+- Cancel scheduled callbacks by reference
+- Switch between real-time mode (1x) and demo mode (accelerated)
+- Ensure all escalation timer logic references the virtual clock (not system time directly)
+- Support testability — tests can advance time without real waits
 
-### 13. AlertSidebar
-**Purpose**: Sidebar panel showing active alerts with management controls
-
-**Responsibilities**:
-- List active alerts sorted by severity then timestamp
-- Provide alert acknowledgment workflow
-- Show alert history (acknowledged alerts)
-- Trigger audio alerts for new notifications
-
-### 14. PatientDetailPanel
-**Purpose**: Expanded view of a single patient's data
+### 5. FHIR Models (`fhir_models.py`)
+**Purpose**: Define FHIR R4-native Pydantic models for care team data
 
 **Responsibilities**:
-- Show all vital signs with larger display
-- Show patient demographics
-- List patient-specific alerts
-- Provide simulation controls for the selected patient
+- Define CareTeam resource model (FHIR R4 structure)
+- Define Practitioner resource model (clinician representation)
+- Define participant structure with role CodeableConcept
+- Provide FHIR-conformant JSON serialization for API responses
+- Define EscalationEvent model for audit trail records
+- Define notification payload models
 
-### Templates (Page layouts)
+---
 
-### 15. DashboardTemplate
-**Purpose**: Define the overall dashboard layout structure
+## New Frontend Components (React — Atomic Design)
+
+### Atoms
+
+### 6. ClinicianSelector
+**Purpose**: Dropdown to select which clinician role the user is "acting as"
 
 **Responsibilities**:
-- Define grid/sidebar layout proportions
-- Handle responsive breakpoints
-- Provide slots for PatientGrid and AlertSidebar
+- Render dropdown with all clinicians from the roster
+- Show clinician name, role, and duty status
+- Dispatch selection to EscalationContext
+- Filter notifications based on selected clinician
+
+### 7. EscalationBadge
+**Purpose**: Display current escalation level with progressive color coding
+
+**Responsibilities**:
+- Render escalation level indicator (1-4)
+- Apply progressive colors: Level 1 green, Level 2 yellow, Level 3 orange, Level 4 red
+- WCAG 2.0 AA compliant (color + icon + text)
+- Show level label (Primary Nurse, Charge Nurse, Physician, RRT)
+
+### 8. CountdownTimer
+**Purpose**: Display countdown to next escalation level
+
+**Responsibilities**:
+- Render real-time countdown (mm:ss format)
+- Update every second
+- Show "Escalating..." when timer reaches zero
+- Accessible to screen readers (aria-live region)
+
+### Molecules
+
+### 9. EscalationStatusPanel
+**Purpose**: Display complete escalation status on an alert card
+
+**Responsibilities**:
+- Show current escalation level (EscalationBadge)
+- Show countdown to next escalation (CountdownTimer)
+- List who has been notified at each level
+- Show time spent at each level
+
+### 10. CareTeamAssignmentRow
+**Purpose**: Display a single patient's care team assignment in the management table
+
+**Responsibilities**:
+- Show patient name, room, current status
+- Show assigned clinicians per level
+- Provide reassignment controls (dropdowns per level)
+- Show checkbox for bulk selection
+
+### 11. ShiftHandoffCard
+**Purpose**: Display shift handoff summary after bulk reassignment
+
+**Responsibilities**:
+- Show active alerts for transferred patients
+- Show pending escalations
+- Show patients requiring attention
+- Show recent acknowledgments from outgoing shift
+
+### 12. NotificationToast
+**Purpose**: Display escalation notification to the selected clinician
+
+**Responsibilities**:
+- Show notification type (escalation, resolved, acknowledged)
+- Show alert context (patient, vital sign, severity)
+- Auto-dismiss after timeout or on user interaction
+- Stack multiple notifications
+
+### Organisms
+
+### 13. CareTeamTable
+**Purpose**: Full care team assignment table with management controls
+
+**Responsibilities**:
+- Render all patient assignments as CareTeamAssignmentRow molecules
+- Support bulk selection (checkboxes)
+- Provide bulk handoff action button
+- Filter by clinician or patient
+- Show clinician duty status indicators
+
+### 14. ClinicianRoster
+**Purpose**: Display and manage the clinician roster with duty status
+
+**Responsibilities**:
+- List all clinicians with name, role, duty status
+- Toggle on-duty/off-duty per clinician
+- Show patient count per clinician
+- Highlight off-duty clinicians
+
+### 15. EscalationHistoryTimeline
+**Purpose**: Display complete escalation audit trail for an alert
+
+**Responsibilities**:
+- Render vertical timeline of escalation events
+- Show who was notified, when, at what level
+- Show response times per level
+- Highlight acknowledgment event
+- Show total time from alert to resolution
+
+### 16. NotificationPanel
+**Purpose**: Display notification feed for the selected clinician
+
+**Responsibilities**:
+- List recent escalation notifications
+- Filter by selected clinician role
+- Show notification type, timestamp, alert context
+- Mark notifications as read/unread
 
 ### Pages
 
-### 16. DashboardPage
-**Purpose**: Main landing page assembling all dashboard components
+### 17. CareTeamPage
+**Purpose**: Dedicated page for care team management and escalation history
 
 **Responsibilities**:
-- Connect to WebSocket for real-time data
-- Manage application state via Context API + useReducer
-- Orchestrate data flow between components
-- Handle audio alert playback via Web Audio API
+- Render CareTeamTable organism
+- Render ClinicianRoster organism
+- Provide tab/section for Escalation History
+- Handle bulk handoff workflow
+- Display ShiftHandoffCard after handoff operations
+
+---
+
+## Modified Existing Components
+
+### AlertCard (Enhanced)
+**Modifications**:
+- Add EscalationStatusPanel molecule (shows level, countdown, notified clinicians)
+- Progressive color border based on escalation level
+- Acknowledgment now triggers escalation stop + team notification
+
+### SimulationControls (Enhanced)
+**Modifications**:
+- Add demo mode toggle (real-time vs compressed timers)
+- Show current mode indicator
+
+### DashboardPage (Enhanced)
+**Modifications**:
+- Add sidebar navigation (Dashboard | Care Team)
+- Add ClinicianSelector to header area
+- Add NotificationPanel overlay/drawer
+
+### AppContext/Reducer (Unchanged)
+**Note**: Escalation state managed in separate EscalationContext. Existing AppContext unchanged.
 
 ---
 
 ## Shared/Cross-Cutting
 
-### 17. AudioAlertManager
-**Purpose**: Manage audio notifications with priority queue
+### 18. EscalationContext (React Context)
+**Purpose**: Manage escalation-specific state separate from existing app state
 
 **Responsibilities**:
-- Play different sounds for warning vs critical alerts
-- Queue management (don't overlap sounds)
-- Provide mute/unmute control
-- Stop sound on alert acknowledgment
+- Store care team assignments
+- Store active escalation states
+- Store clinician roster and duty status
+- Store notification queue for selected clinician
+- Store selected clinician identity
+- Provide dispatch for escalation actions
+- Connect to WebSocket for escalation_event messages
 
-### 18. WebSocketClient
-**Purpose**: Frontend WebSocket connection management
-
-**Responsibilities**:
-- Establish and maintain WebSocket connection to backend
-- Parse incoming messages (vitals updates, alert notifications)
-- Dispatch received data to application state
-- Handle reconnection on disconnect
