@@ -47,18 +47,14 @@ function DashboardPageInner() {
 
     wsClient.onNewAlert((data) => {
       dispatch({ type: ACTIONS.ADD_ALERT, payload: data });
-      // Trigger audio alert
-      if (!audioMuted) {
-        audioAlertManager.playAlert(data.severity);
-      }
+      // Trigger audio alert — always try to play (audioAlertManager checks its own muted state)
+      audioAlertManager.playAlert(data.severity);
     });
 
     wsClient.onAlertEscalated((data) => {
       dispatch({ type: ACTIONS.ESCALATE_ALERT, payload: data });
       // Play critical sound on escalation
-      if (!audioMuted) {
-        audioAlertManager.playAlert('Critical');
-      }
+      audioAlertManager.playAlert('Critical');
     });
 
     wsClient.onAlertAcknowledged((data) => {
