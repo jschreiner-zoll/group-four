@@ -144,9 +144,11 @@ function AppContent() {
           </div>
         </header>
 
-        {/* Page Content */}
+        {/* Page Content — DashboardPage always mounted to keep WebSocket + audio alive */}
         <div style={contentStyle}>
-          {activePage === 'dashboard' && <DashboardPage />}
+          <div style={{ display: activePage === 'dashboard' ? 'block' : 'none', height: '100%' }}>
+            <DashboardPage />
+          </div>
           {activePage === 'careteam' && <CareTeamPage />}
         </div>
       </div>
