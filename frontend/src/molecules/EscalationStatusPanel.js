@@ -8,10 +8,10 @@ import EscalationBadge from '../atoms/EscalationBadge';
 import CountdownTimer from '../atoms/CountdownTimer';
 
 const LEVEL_BORDER_COLORS = {
-  1: '#2E7D32',
-  2: '#F57F17',
-  3: '#E65100',
-  4: '#B71C1C',
+  1: 'var(--color-escalation-1, #2E7D32)',
+  2: 'var(--color-escalation-2, #F57F17)',
+  3: 'var(--color-escalation-3, #E65100)',
+  4: 'var(--color-escalation-4, #B71C1C)',
 };
 
 export default function EscalationStatusPanel({ escalation }) {
@@ -51,7 +51,7 @@ export default function EscalationStatusPanel({ escalation }) {
   const panelStyle = {
     padding: '8px 12px',
     borderLeft: `3px solid ${LEVEL_BORDER_COLORS[current_level] || '#757575'}`,
-    backgroundColor: '#FAFAFA',
+    backgroundColor: 'var(--bg-escalation-panel, #FAFAFA)',
     borderRadius: '0 4px 4px 0',
     marginTop: '8px',
     fontSize: '12px',
@@ -75,7 +75,7 @@ export default function EscalationStatusPanel({ escalation }) {
     alignItems: 'center',
     gap: '4px',
     padding: '2px 0',
-    color: '#616161',
+    color: 'var(--color-escalation-text, #616161)',
     fontSize: '11px',
   };
 
@@ -90,7 +90,7 @@ export default function EscalationStatusPanel({ escalation }) {
 
       {notified_clinicians.length > 0 && (
         <div>
-          <span style={{ fontSize: '11px', color: '#9E9E9E', fontWeight: '500' }}>
+          <span style={{ fontSize: '11px', color: 'var(--color-escalation-muted, #9E9E9E)', fontWeight: '500' }}>
             Notified:
           </span>
           <ul style={notifiedListStyle}>
@@ -100,7 +100,7 @@ export default function EscalationStatusPanel({ escalation }) {
                 <li key={idx} style={notifiedItemStyle}>
                   <span>•</span>
                   <span>{nc.clinician_name} (L{nc.level})</span>
-                  <span style={{ color: '#BDBDBD' }}>— {timeAgo}</span>
+                  <span style={{ color: 'var(--color-escalation-muted, #BDBDBD)' }}>— {timeAgo}</span>
                 </li>
               );
             })}

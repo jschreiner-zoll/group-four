@@ -6,10 +6,10 @@
 import React from 'react';
 
 const LEVEL_CONFIG = {
-  1: { color: '#2E7D32', label: 'Primary Nurse', icon: '👤' },
-  2: { color: '#F57F17', label: 'Charge Nurse', icon: '👥' },
-  3: { color: '#E65100', label: 'Physician', icon: '⚕️' },
-  4: { color: '#B71C1C', label: 'RRT', icon: '🚨' },
+  1: { color: 'var(--color-escalation-1, #2E7D32)', label: 'Primary Nurse', icon: '👤' },
+  2: { color: 'var(--color-escalation-2, #F57F17)', label: 'Charge Nurse', icon: '👥' },
+  3: { color: 'var(--color-escalation-3, #E65100)', label: 'Physician', icon: '⚕️' },
+  4: { color: 'var(--color-escalation-4, #B71C1C)', label: 'RRT', icon: '🚨' },
 };
 
 export default function EscalationBadge({ level, maxLevel }) {

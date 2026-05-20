@@ -52,6 +52,15 @@
   --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.12);
   --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.1);
   --shadow-lg: 0 10px 15px rgba(0, 0, 0, 0.1);
+
+  /* Escalation Level Colors */
+  --color-escalation-1: #2E7D32;    /* Level 1: Primary Nurse — Green */
+  --color-escalation-2: #F57F17;    /* Level 2: Charge Nurse — Amber */
+  --color-escalation-3: #E65100;    /* Level 3: Physician — Deep Orange */
+  --color-escalation-4: #B71C1C;    /* Level 4: RRT — Dark Red */
+  --bg-escalation-panel: #FAFAFA;
+  --color-escalation-text: #616161;
+  --color-escalation-muted: #9E9E9E;
 }
 
 /* Dark Mode */
@@ -84,6 +93,15 @@
   --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.4);
   --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.3);
   --shadow-lg: 0 10px 15px rgba(0, 0, 0, 0.4);
+
+  /* Escalation Level Colors — adjusted for dark backgrounds */
+  --color-escalation-1: #66BB6A;    /* Level 1: Lighter green for dark bg */
+  --color-escalation-2: #FFCA28;    /* Level 2: Brighter amber for dark bg */
+  --color-escalation-3: #FF7043;    /* Level 3: Lighter orange for dark bg */
+  --color-escalation-4: #EF5350;    /* Level 4: Lighter red for dark bg */
+  --bg-escalation-panel: #2A2A2A;
+  --color-escalation-text: #BDBDBD;
+  --color-escalation-muted: #757575;
 }
 
 /* Global Reset */
