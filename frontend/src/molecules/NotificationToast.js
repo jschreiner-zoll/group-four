@@ -11,6 +11,13 @@ const EVENT_CONFIG = {
   acknowledged: { color: '#2E7D32', icon: '✓', label: 'Alert Acknowledged' },
 };
 
+const LEVEL_NAMES = {
+  1: 'Primary Nurse',
+  2: 'Charge Nurse',
+  3: 'Attending Physician',
+  4: 'Rapid Response Team',
+};
+
 export default function NotificationToast({ notification, onDismiss }) {
   const eventType = notification?.type || 'notified';
   const config = EVENT_CONFIG[eventType] || EVENT_CONFIG.notified;
@@ -80,9 +87,25 @@ export default function NotificationToast({ notification, onDismiss }) {
       <div style={contentStyle}>
         <span style={labelStyle}>{config.label}</span>
         <span style={detailStyle}>
-          {notification.patient_name || 'Patient'} — {notification.vital_sign || 'Alert'}
+          <strong>{notification.patient_name || 'Patient'}</strong> — {notification.vital_sign?.replace(/_/g, ' ') || 'Alert'}
           {notification.severity && ` (${notification.severity})`}
         </span>
+        {notification.level && (
+          <span style={{ fontSize: '11px', color: '#9E9E9E', marginTop: '2px' }}>
+            Level {notification.level}: {LEVEL_NAMES[notification.level] || `Level ${notification.level}`}
+            {notification.current_value && ` • Value: ${notification.current_value}`}
+          </span>
+        )}
+        {eventType === 'notified' && (
+          <span style={{ fontSize: '11px', color: config.color, marginTop: '2px', fontStyle: 'italic' }}>
+            Action required — please review and acknowledge
+          </span>
+        )}
+        {eventType === 'resolved' && (
+          <span style={{ fontSize: '11px', color: config.color, marginTop: '2px', fontStyle: 'italic' }}>
+            No action needed — another clinician responded
+          </span>
+        )}
       </div>
       <button
         onClick={() => onDismiss && onDismiss(notification.id || notification.alert_id)}
