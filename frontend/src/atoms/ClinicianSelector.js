@@ -1,11 +1,23 @@
 /**
  * ClinicianSelector — dropdown to select which clinician role the user is "acting as".
  * Filters notifications based on selected clinician.
+ * Shows a role badge next to the dropdown for visual confirmation.
  */
 
 import React from 'react';
 
+const ROLE_COLORS = {
+  'Primary Nurse': '#2E7D32',
+  'Charge Nurse': '#F57F17',
+  'Attending Physician': '#E65100',
+  'RRT Member': '#B71C1C',
+};
+
 export default function ClinicianSelector({ clinicians, selectedId, onSelect }) {
+  const selectedClinician = clinicians.find((c) => c.id === selectedId);
+  const roleName = selectedClinician?.qualification?.[0]?.code?.text || '';
+  const roleColor = ROLE_COLORS[roleName] || '#757575';
+
   const selectorStyle = {
     display: 'flex',
     alignItems: 'center',
@@ -19,13 +31,31 @@ export default function ClinicianSelector({ clinicians, selectedId, onSelect }) 
   };
 
   const selectStyle = {
-    padding: '4px 8px',
+    padding: '6px 10px',
     borderRadius: '4px',
-    border: '1px solid #BDBDBD',
+    border: `2px solid ${roleColor}`,
     fontSize: '13px',
     backgroundColor: '#FFFFFF',
     cursor: 'pointer',
+    fontWeight: '500',
   };
+
+  const roleBadgeStyle = {
+    fontSize: '11px',
+    fontWeight: '600',
+    color: '#FFFFFF',
+    backgroundColor: roleColor,
+    padding: '2px 8px',
+    borderRadius: '10px',
+  };
+
+  if (!clinicians || clinicians.length === 0) {
+    return (
+      <div style={selectorStyle} data-testid="clinician-selector">
+        <span style={labelStyle}>Loading clinicians...</span>
+      </div>
+    );
+  }
 
   return (
     <div style={selectorStyle} data-testid="clinician-selector">
@@ -48,6 +78,7 @@ export default function ClinicianSelector({ clinicians, selectedId, onSelect }) 
           </option>
         ))}
       </select>
+      {roleName && <span style={roleBadgeStyle}>{roleName}</span>}
     </div>
   );
 }
