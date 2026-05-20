@@ -46,13 +46,22 @@ export default function PatientDetailPanel() {
   return (
     <div className={panelClass} role="dialog" aria-label={`Patient details: ${patient.name}`} data-testid="patient-detail-panel">
       <div className="detail-panel__header">
-        <div>
-          <h2 style={{ fontSize: 'var(--font-size-xl)', marginBottom: '4px' }}>
-            {patient.name}
-          </h2>
-          <p style={{ color: 'var(--color-text-muted)', fontSize: 'var(--font-size-sm)' }}>
-            {t('age')}: {patient.age} | {patient.room}
-          </p>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--spacing-md)' }}>
+          {patient.avatar_svg && (
+            <div
+              className="detail-panel__avatar"
+              dangerouslySetInnerHTML={{ __html: patient.avatar_svg }}
+              aria-hidden="true"
+            />
+          )}
+          <div>
+            <h2 style={{ fontSize: 'var(--font-size-xl)', marginBottom: '4px' }}>
+              {patient.name}
+            </h2>
+            <p style={{ color: 'var(--color-text-muted)', fontSize: 'var(--font-size-sm)' }}>
+              {t('age')}: {patient.age} | {patient.room}
+            </p>
+          </div>
         </div>
         <button
           className="detail-panel__close"

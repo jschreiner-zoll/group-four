@@ -39,6 +39,7 @@ class Patient(BaseModel):
     room: str
     status: PatientStatus = PatientStatus.NORMAL
     active_conditions: list[str] = Field(default_factory=list)
+    avatar_svg: str = ""
 
 
 class VitalReading(BaseModel):

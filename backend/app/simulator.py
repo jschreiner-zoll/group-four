@@ -19,6 +19,7 @@ from app.models import (
     PatientStatus,
     VitalReading,
 )
+from app.avatar import generate_avatar_svg
 
 
 class VitalSignsSimulator:
@@ -41,6 +42,7 @@ class VitalSignsSimulator:
                 name=seed["name"],
                 age=seed["age"],
                 room=seed["room"],
+                avatar_svg=generate_avatar_svg(seed["name"], seed["age"]),
             )
             self.active_conditions[patient_id] = {}
 

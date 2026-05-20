@@ -1,6 +1,7 @@
 """REST API route handlers for patient and alert management."""
 
 from fastapi import APIRouter, HTTPException
+from fastapi.responses import Response
 
 from app.models import AcknowledgeRequest, SimulateRequest
 
@@ -39,6 +40,15 @@ async def get_patient(patient_id: str):
         raise HTTPException(status_code=404, detail="Patient not found")
     patient.status = alert_engine.derive_patient_status(patient.id)
     return patient.model_dump()
+
+
+@router.get("/patients/{patient_id}/avatar")
+async def get_patient_avatar(patient_id: str):
+    """Get patient avatar as SVG."""
+    patient = simulator.get_patient(patient_id)
+    if patient is None:
+        raise HTTPException(status_code=404, detail="Patient not found")
+    return Response(content=patient.avatar_svg, media_type="image/svg+xml")
 
 
 @router.post("/patients/{patient_id}/simulate")
