@@ -6,6 +6,7 @@ __pycache__/
 .pytest_cache/
 
 # Node
+node_modules/
 frontend/node_modules/
 frontend/build/
 
@@ -20,6 +21,9 @@ Thumbs.db
 # Environment
 .env.local
 .env.production
+
+# Test results
+test-results/
 
 # Misc
 *.pptx
