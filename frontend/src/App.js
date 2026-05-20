@@ -46,18 +46,19 @@ function AppContent() {
 
   const sidebarStyle = {
     width: '200px',
-    backgroundColor: '#1A237E',
+    backgroundColor: 'var(--color-surface, #1A237E)',
     display: 'flex',
     flexDirection: 'column',
     flexShrink: 0,
+    borderRight: '1px solid var(--color-border, #E0E0E0)',
   };
 
   const logoStyle = {
     padding: '16px',
-    color: '#FFFFFF',
+    color: 'var(--color-text-primary, #FFFFFF)',
     fontSize: '14px',
     fontWeight: '700',
-    borderBottom: '1px solid rgba(255,255,255,0.1)',
+    borderBottom: '1px solid var(--color-border, rgba(255,255,255,0.1))',
   };
 
   const navStyle = {
@@ -72,9 +73,9 @@ function AppContent() {
     alignItems: 'center',
     gap: '10px',
     padding: '12px 16px',
-    color: isActive ? '#FFFFFF' : 'rgba(255,255,255,0.7)',
-    backgroundColor: isActive ? 'rgba(255,255,255,0.1)' : 'transparent',
-    borderLeft: isActive ? '3px solid #64B5F6' : '3px solid transparent',
+    color: isActive ? 'var(--color-text-primary, #FFFFFF)' : 'var(--color-text-secondary, rgba(255,255,255,0.7))',
+    backgroundColor: isActive ? 'var(--color-primary-light, rgba(255,255,255,0.1))' : 'transparent',
+    borderLeft: isActive ? '3px solid var(--color-primary, #64B5F6)' : '3px solid transparent',
     cursor: 'pointer',
     fontSize: '13px',
     fontWeight: isActive ? '600' : '400',
@@ -96,15 +97,15 @@ function AppContent() {
     alignItems: 'center',
     justifyContent: 'space-between',
     padding: '10px 20px',
-    backgroundColor: '#FFFFFF',
-    borderBottom: '1px solid #E0E0E0',
+    backgroundColor: 'var(--color-surface, #FFFFFF)',
+    borderBottom: '1px solid var(--color-border, #E0E0E0)',
     flexShrink: 0,
   };
 
   const headerTitleStyle = {
     fontSize: '16px',
     fontWeight: '600',
-    color: '#212121',
+    color: 'var(--color-text-primary, #212121)',
   };
 
   const headerActionsStyle = {
@@ -116,6 +117,7 @@ function AppContent() {
   const contentStyle = {
     flex: 1,
     overflow: 'auto',
+    backgroundColor: 'var(--color-background, #FAFAFA)',
   };
 
   return (
