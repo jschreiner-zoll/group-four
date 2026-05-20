@@ -15,13 +15,6 @@ function DashboardPageInner() {
   const { audioMuted } = useAppState();
 
   useEffect(() => {
-    // Unlock audio on first user interaction (browser autoplay policy)
-    const unlockAudio = () => {
-      audioAlertManager.unlock();
-      document.removeEventListener('click', unlockAudio);
-    };
-    document.addEventListener('click', unlockAudio);
-
     // Fetch initial patient data
     fetchPatients()
       .then((patients) => {
@@ -74,7 +67,6 @@ function DashboardPageInner() {
 
     return () => {
       wsClient.disconnect();
-      audioAlertManager.mute();
     };
   }, []);
 

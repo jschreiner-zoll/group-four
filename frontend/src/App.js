@@ -3,7 +3,7 @@
  * Wraps with EscalationProvider for escalation state management.
  */
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import DashboardPage from './pages/DashboardPage';
 import CareTeamPage from './pages/CareTeamPage';
 import { EscalationProvider } from './context/EscalationContext';
@@ -12,11 +12,27 @@ import { LanguageProvider } from './context/LanguageContext';
 import ClinicianSelector from './atoms/ClinicianSelector';
 import NotificationPanel from './organisms/NotificationPanel';
 import { useEscalation, useEscalationDispatch, ESCALATION_ACTIONS } from './context/EscalationContext';
+import audioAlertManager from './services/audioAlertManager';
 
 function AppContent() {
   const [activePage, setActivePage] = useState('dashboard');
   const { clinicians, selectedClinician } = useEscalation();
   const dispatch = useEscalationDispatch();
+
+  // Unlock audio on first user interaction (browser autoplay policy)
+  useEffect(() => {
+    const unlockAudio = () => {
+      audioAlertManager.unlock();
+      document.removeEventListener('click', unlockAudio);
+      document.removeEventListener('keydown', unlockAudio);
+    };
+    document.addEventListener('click', unlockAudio);
+    document.addEventListener('keydown', unlockAudio);
+    return () => {
+      document.removeEventListener('click', unlockAudio);
+      document.removeEventListener('keydown', unlockAudio);
+    };
+  }, []);
 
   const handleClinicianSelect = (clinicianId) => {
     dispatch({ type: ESCALATION_ACTIONS.SET_SELECTED_CLINICIAN, payload: clinicianId });
