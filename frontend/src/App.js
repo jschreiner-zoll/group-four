@@ -51,12 +51,19 @@ function AppContent() {
 
   const layoutStyle = {
     display: 'flex',
+    flexDirection: 'column',
     height: '100vh',
     overflow: 'hidden',
   };
 
+  const bodyStyle = {
+    display: 'flex',
+    flex: 1,
+    overflow: 'hidden',
+  };
+
   const sidebarStyle = {
-    width: '200px',
+    width: '180px',
     backgroundColor: 'var(--color-surface, #1A237E)',
     display: 'flex',
     flexDirection: 'column',
@@ -96,13 +103,6 @@ function AppContent() {
     textAlign: 'left',
   });
 
-  const mainStyle = {
-    flex: 1,
-    display: 'flex',
-    flexDirection: 'column',
-    overflow: 'hidden',
-  };
-
   const headerStyle = {
     display: 'flex',
     alignItems: 'center',
@@ -134,58 +134,58 @@ function AppContent() {
 
   return (
     <div style={layoutStyle}>
-      {/* Sidebar Navigation */}
-      <nav style={sidebarStyle} aria-label="Main navigation">
-        <div style={navStyle}>
+      {/* Header — full width across the top */}
+      <header style={headerStyle}>
+        <h1 style={headerTitleStyle}>
+          {t('title')}
+        </h1>
+        <div style={headerActionsStyle}>
+          <LanguageSelector />
           <button
-            style={navItemStyle(activePage === 'dashboard')}
-            onClick={() => setActivePage('dashboard')}
-            data-testid="nav-dashboard"
+            onClick={() => setDarkMode(!darkMode)}
+            aria-label={darkMode ? 'Switch to light mode' : 'Switch to dark mode'}
+            data-testid="theme-toggle"
+            style={{ background: 'rgba(255,255,255,0.15)', border: '1px solid rgba(255,255,255,0.3)', borderRadius: '4px', padding: '4px 8px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px', fontSize: '12px', color: '#FFFFFF' }}
           >
-            <span aria-hidden="true">📊</span>
-            <span>Dashboard</span>
+            {darkMode ? <Sun size={14} /> : <Moon size={14} />}
+            {darkMode ? t('light') : t('dark')}
           </button>
-          <button
-            style={navItemStyle(activePage === 'careteam')}
-            onClick={() => setActivePage('careteam')}
-            data-testid="nav-careteam"
-          >
-            <span aria-hidden="true">👥</span>
-            <span>Care Team</span>
-          </button>
-        </div>
-      </nav>
-
-      {/* Main Content */}
-      <div style={mainStyle}>
-        {/* Header with Clinician Selector and Notifications */}
-        <header style={headerStyle}>
-          <h1 style={headerTitleStyle}>
-            {t('title')}
-          </h1>
-          <div style={headerActionsStyle}>
-            <LanguageSelector />
-            <button
-              onClick={() => setDarkMode(!darkMode)}
-              aria-label={darkMode ? 'Switch to light mode' : 'Switch to dark mode'}
-              data-testid="theme-toggle"
-              style={{ background: 'rgba(255,255,255,0.15)', border: '1px solid rgba(255,255,255,0.3)', borderRadius: '4px', padding: '4px 8px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px', fontSize: '12px', color: '#FFFFFF' }}
-            >
-              {darkMode ? <Sun size={14} /> : <Moon size={14} />}
-              {darkMode ? t('light') : t('dark')}
-            </button>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '12px', color: 'rgba(255,255,255,0.85)' }}>
-              <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: wsConnected ? '#66BB6A' : '#EF5350' }} />
-              <span>{wsConnected ? t('connected') : t('disconnected')}</span>
-            </div>
-            <ClinicianSelector
-              clinicians={clinicians}
-              selectedId={selectedClinician}
-              onSelect={handleClinicianSelect}
-            />
-            <NotificationPanel />
+          <div style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '12px', color: 'rgba(255,255,255,0.85)' }}>
+            <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: wsConnected ? '#66BB6A' : '#EF5350' }} />
+            <span>{wsConnected ? t('connected') : t('disconnected')}</span>
           </div>
-        </header>
+          <ClinicianSelector
+            clinicians={clinicians}
+            selectedId={selectedClinician}
+            onSelect={handleClinicianSelect}
+          />
+          <NotificationPanel />
+        </div>
+      </header>
+
+      {/* Body — sidebar + content */}
+      <div style={bodyStyle}>
+        {/* Sidebar Navigation */}
+        <nav style={sidebarStyle} aria-label="Main navigation">
+          <div style={navStyle}>
+            <button
+              style={navItemStyle(activePage === 'dashboard')}
+              onClick={() => setActivePage('dashboard')}
+              data-testid="nav-dashboard"
+            >
+              <span aria-hidden="true">📊</span>
+              <span>Dashboard</span>
+            </button>
+            <button
+              style={navItemStyle(activePage === 'careteam')}
+              onClick={() => setActivePage('careteam')}
+              data-testid="nav-careteam"
+            >
+              <span aria-hidden="true">👥</span>
+              <span>Care Team</span>
+            </button>
+          </div>
+        </nav>
 
         {/* Page Content — DashboardPage always mounted to keep WebSocket + audio alive */}
         <div style={contentStyle}>
